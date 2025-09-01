@@ -3,6 +3,7 @@ package lexer
 import "../token"
 
 import "core:fmt"
+import "core:slice"
 
 Lexer :: struct {
     source: []u8,
@@ -84,7 +85,6 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]token.Token {
         lexer.start = lexer.current
         ch := advance(lexer) 
         token_type: token.Token_Type
-        last: Maybe(int) = nil
 
         switch ch {
         case '(': token_type = .LeftParen
@@ -143,18 +143,25 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]token.Token {
                 }
             }
 
-            /* last = lexer.current */
-
         case 34: // bug in odin-mode, '"' break all the higlighting
             token_type = .String
-            not_is_closing_double_quote :: proc(ch: u8) -> bool { return ch != 34 }
-            advance_until(lexer, not_is_closing_double_quote)
+            is_not_closing_double_quote :: proc(ch: u8) -> bool { return ch != 34 }
+            advance_until(lexer, is_not_closing_double_quote)
             lexer.current += 1
+
+        case:
+            token_type = .Identifier
+            is_not_whitespace :: proc(ch: u8) -> bool { return ch != ' ' && ch != '\t' && ch != '\n'}
+            advance_until(lexer, is_not_whitespace)
         }
 
         tok := token.Token{
             token_type = token_type,
-            lexeme = lexer.source[lexer.start:last.? or_else lexer.current],
+            lexeme = lexer.source[lexer.start:lexer.current],
+        }
+
+        if token_type == .Identifier {
+            trasform_in_keyword_if_needed(&tok)
         }
 
         append(&tokens, tok)
@@ -173,4 +180,70 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]token.Token {
     }
 
     return tokens
+}
+
+trasform_in_keyword_if_needed :: proc(tok: ^token.Token) {
+    using tok
+    size := len(lexeme)
+    switch lexeme[0] {
+    case 'i':  
+        if size == 2 && lexeme[1] == 'f' {
+            token_type = .If
+        }
+    case 't':
+        if size == 4 && slice.simple_equal(lexeme, []u8{'t', 'r', 'u', 'e'}) {
+            token_type = .True
+        }
+        if size == 4 && slice.simple_equal(lexeme, []u8{'t', 'h', 'e', 'n'}) {
+            token_type = .Then
+        }
+    case 'e':
+        if size == 4 && slice.simple_equal(lexeme, []u8{'e', 'l', 's', 'e'}) {
+            token_type = .Else
+        }
+        if size == 3 && slice.simple_equal(lexeme, []u8{'e', 'n', 'd'}) {
+            token_type = .End
+        }
+    case 'f':
+        if size == 5 && slice.simple_equal(lexeme, []u8{'f', 'a', 'l', 's', 'e'}) {
+           token_type = .False 
+        }
+        if size == 4 && slice.simple_equal(lexeme, []u8{'f', 'u', 'n', 'c'}) {
+           token_type = .False 
+        }
+        if size == 3 && slice.simple_equal(lexeme, []u8{'f', 'o', 'r'}) {
+           token_type = .For
+        }
+    case 'a':
+        if size == 3 && slice.simple_equal(lexeme, []u8{'a', 'n', 'd'}) {
+            token_type = .And
+        }
+    case 'o':
+        if size == 2 && lexeme[1] == 'r' {
+            token_type = .Or
+        }
+    case 'w':
+        if size == 5 && slice.simple_equal(lexeme, []u8{'w', 'h', 'i', 'l', 'e'}) {
+            token_type = .While
+        }
+    case 'd':
+        if size == 2 && lexeme[1] == 'o' {
+            token_type = .Do
+        }
+    case 'n':
+        if size == 4 && slice.simple_equal(lexeme, []u8{'n', 'u', 'l', 'l'}) {
+            token_type = .Null
+        }
+    case 'p':
+        if size == 5 && slice.simple_equal(lexeme, []u8{'p', 'r', 'i', 'n', 't'}) {
+            token_type = .Print
+        }
+        if size == 7 && slice.simple_equal(lexeme, []u8{'p', 'r', 'i', 'n', 't', 'l', 'n'}) {
+            token_type = .Println
+        }
+    case 'r':
+        if size == 6 && slice.simple_equal(lexeme, []u8{'r', 'e', 't', 'u', 'r', 'n'}) {
+            token_type = .Ret
+        }
+    }
 }
