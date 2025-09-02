@@ -5,6 +5,7 @@ import "core:mem"
 import "core:os"
 
 import "pinky:lexer"
+import "pinky:token"
 
 main :: proc() {
     if len(os.args) != 2 {
@@ -58,7 +59,7 @@ main :: proc() {
     defer delete(tokens)
 
     for &tok, index in tokens {
-        str := lexer.token_to_string(tok)
+        str := token.token_to_string(tok)
         defer delete(str)
         fmt.printf("tokens[%2d-th] := %s\n", index, str)
     }
