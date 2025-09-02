@@ -95,6 +95,7 @@ token_type_to_string :: proc(tt: Token_Type) -> (s: string) {
 Token :: struct {
     token_type: Token_Type,
     lexeme: []u8,
+    line: int,
 }
 
 // Note: the caller own the memory is it's job to free it
@@ -102,7 +103,8 @@ token_to_string :: proc(tok: Token) -> string {
     builder := strings.builder_make()
 
     return fmt.sbprintf(&builder,
-                 "Token(TokenType: '%s', Lexeme: '%s')",
-                 token_type_to_string(tok.token_type),
-                 tok.lexeme)
+                        "Token(TokenType: '%s', Lexeme: '%s', Line: %d)",
+                        token_type_to_string(tok.token_type),
+                        tok.lexeme,
+                        tok.line)
 }

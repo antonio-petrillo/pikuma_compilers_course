@@ -64,8 +64,29 @@ is_digit :: proc(ch: u8) -> bool {
     return ch >= '0' && ch <= '9'
 }
 
-tokenize :: proc(lexer: ^Lexer) -> [dynamic]Token {
+Tokenize_Error :: enum {
+    None,
+    MalformedEqual,
+    UnclosedString,
+    MalformedFloat,
+    UnexpectedEOF,
+    
+}
+
+tokenize_error_to_string :: proc(te: Tokenize_Error) -> (s: string) {
+    switch te {
+    case .None: s = "None"
+    case .MalformedEqual: s = "Missing '=' after '=' (malformed '==')"
+    case .MalformedFloat: s = "Missing digits '[0-9]+' after '[0-9]\\.'"
+    case .UnclosedString: s = "Missing ''' while lexing string (unclosed string)"
+    case .UnexpectedEOF: s = "Hit unexpectedly End Of File while lexing"
+    }
+    return 
+}
+
+tokenize :: proc(lexer: ^Lexer) -> ([dynamic]Token, Tokenize_Error) {
     tokens := make([dynamic]Token) 
+    err: Tokenize_Error = .None
     encountered_error := false
     defer {
         lexer.line = 1
@@ -92,23 +113,25 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]Token {
         case ',': token_type = .Comma
         case '.': token_type = .Dot
         case '+': token_type = .Plus
-        case '-': token_type = .Minus
         case '*': token_type = .Star
         case '/': token_type = .Slash
         case '^': token_type = .Caret
         case '%': token_type = .Mod
         case '?': token_type = .Question
         case ';': token_type = .Semicolon
-        case '#': // skip comments until newline
-            is_not_newline :: proc(ch: u8) -> bool { return ch != '\n' }
-            advance_until(lexer, is_not_newline)
-            continue loop
+        case '-':
+            if match(lexer, '-') {
+                is_not_newline :: proc(ch: u8) -> bool { return ch != '\n' }
+                advance_until(lexer, is_not_newline)
+                continue loop
+            }
+            token_type = .Minus
         case ':': token_type = match(lexer, '=') ? .Assign : .Colon
         case '~': token_type = match(lexer, '=') ? .Ne : .Not
         case '=': 
             if !match(lexer, '=') {
-                fmt.eprintf("Expected '=' after '='.\n") 
                 encountered_error = true
+                err = .MalformedEqual
                 break loop
             }
             token_type = .Eq
@@ -136,9 +159,8 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]Token {
                     token_type = .Float
                     advance_until(lexer, is_digit)
                 } else {
-                    fmt.eprintf("Error parsing a Float, expected <numbers> after '.'\n")
-                    fmt.eprintf("Current lexeme := %q\n", lexer.source[lexer.start:lexer.current])
                     encountered_error = true
+                    err = .MalformedFloat
                     break loop
                 }
             }
@@ -148,6 +170,11 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]Token {
             is_not_closing_double_quote :: proc(ch: u8) -> bool { return ch != 34 }
             advance_until(lexer, is_not_closing_double_quote)
             lexer.current += 1
+            if is_eof(lexer) && lexer.source[lexer.current - 1] != 34 { // '"'
+                encountered_error = true
+                err = .UnclosedString
+                break loop
+            }
 
         case:
             token_type = .Identifier
@@ -160,6 +187,7 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]Token {
         tok := Token{
             token_type = token_type,
             lexeme = lexer.source[lexer.start:lexer.current],
+            line = lexer.line,
         }
 
         if token_type == .Identifier {
@@ -170,18 +198,10 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]Token {
     }
 
     if encountered_error {
-        fmt.eprintf("Encountered an error while lexing\n")
-        fmt.eprintf("At line <%d>\n", lexer.line)
-        fmt.eprintf("At byte offset in source := <%d>\n", lexer.current)
-        if lexer.current < len(lexer.source) {
-            fmt.eprintf("At the character := <%c>\n", lexer.source[lexer.current])
-        } else {
-            fmt.eprintf("At the EOF\n")
-        }
         clear(&tokens)
     }
 
-    return tokens
+    return tokens, err
 }
 
 trasform_in_keyword_if_needed :: proc(tok: ^Token) {

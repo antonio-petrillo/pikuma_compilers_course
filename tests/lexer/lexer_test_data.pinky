@@ -1,30 +1,19 @@
 ()[]{}
-
 ,.+-*/^%;?
-
 : :=
-
 ~ ~= ==
-
 > >= >>
-
 < <= <<
-
 "a string literal"
-
 1234567890
 12345.6789
-
 if then else
-
 true false
-
 and or
 while do for
 func
 null end
 print println
 ret
-
 varname
 another_var
