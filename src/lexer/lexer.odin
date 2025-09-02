@@ -94,17 +94,15 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]Token {
         case '+': token_type = .Plus
         case '-': token_type = .Minus
         case '*': token_type = .Star
-        case '/':
-            if match(lexer, '/') {
-                is_not_newline :: proc(ch: u8) -> bool { return ch != '\n' }
-                advance_until(lexer, is_not_newline)
-                continue loop  
-            }
-            token_type = .Slash
+        case '/': token_type = .Slash
         case '^': token_type = .Caret
         case '%': token_type = .Mod
         case '?': token_type = .Question
         case ';': token_type = .Semicolon
+        case '#': // skip comments until newline
+            is_not_newline :: proc(ch: u8) -> bool { return ch != '\n' }
+            advance_until(lexer, is_not_newline)
+            continue loop
         case ':': token_type = match(lexer, '=') ? .Assign : .Colon
         case '~': token_type = match(lexer, '=') ? .Ne : .Not
         case '=': 
