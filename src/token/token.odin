@@ -13,10 +13,10 @@ Token_Type :: enum {
     Colon, Semicolon, // ':', ';'
 
     Question, // '?'
-    Not, Gt, Lt, // '~', '>', '<'
+    Not, Eq, Gt, Lt, // '~', '=', '>', '<'
 
     Ne, Ge, Le, // '~=', '>=', '<='
-    Eq, Assign, // '==', ':='
+    EqEq, Assign, // '==', ':='
     GtGt, LtLt, // '>>', '<<'
 
     Identifier,
@@ -58,13 +58,14 @@ token_type_to_string :: proc(tt: Token_Type) -> (s: string) {
     case .Colon: s = "TOK_COLON"
     case .Semicolon: s = "TOK_SEMICOLON"
     case .Question: s = "TOK_QUESTION"
+    case .Eq: s = "TOK_EQ"
     case .Not: s = "TOK_NOT"
     case .Gt: s = "TOK_GT"
     case .Lt: s = "TOK_LT"
     case .Ne: s = "TOK_NE"
     case .Ge: s = "TOK_GE"
     case .Le: s = "TOK_LE"
-    case .Eq: s = "TOK_EQ"
+    case .EqEq: s = "TOK_EQEQ"
     case .Assign: s = "TOK_ASSIGN"
     case .GtGt: s = "TOK_GTGT"
     case .LtLt: s = "TOK_LTLT"

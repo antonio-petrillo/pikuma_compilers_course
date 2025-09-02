@@ -4,7 +4,6 @@ import "pinky:token"
 
 Tokenize_Error :: enum {
     None,
-    MalformedEqual,
     UnclosedString,
     MalformedFloat,
     UnexpectedEOF,
@@ -14,7 +13,6 @@ Tokenize_Error :: enum {
 tokenize_error_to_string :: proc(te: Tokenize_Error) -> (s: string) {
     switch te {
     case .None: s = "None"
-    case .MalformedEqual: s = "Missing '=' after '=' (malformed '==')"
     case .MalformedFloat: s = "Missing digits '[0-9]+' after '[0-9]\\.'"
     case .UnclosedString: s = "Missing ''' while lexing string (unclosed string)"
     case .UnexpectedEOF: s = "Hit unexpectedly End Of File while lexing"
@@ -67,13 +65,7 @@ tokenize :: proc(source: []u8) -> ([dynamic]token.Token, Tokenize_Error) {
             token_type = .Minus
         case ':': token_type = match(lexer, '=') ? .Assign : .Colon
         case '~': token_type = match(lexer, '=') ? .Ne : .Not
-        case '=': 
-            if !match(lexer, '=') {
-                encountered_error = true
-                err = .MalformedEqual
-                break loop
-            }
-            token_type = .Eq
+        case '=': token_type = match(lexer, '=') ? .EqEq : .Eq
         case '>':
             if match(lexer, '=') do token_type = .Ge
             else if match(lexer, '>') do token_type = .GtGt

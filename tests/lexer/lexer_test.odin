@@ -66,9 +66,10 @@ test_all_tokens_are_lexed_correctly :: proc(t: ^testing.T) {
         token.Token{.Question, transmute([]u8)string("?"), 2},
         token.Token{.Colon, transmute([]u8)string(":"), 3},
         token.Token{.Assign, transmute([]u8)string(":="), 3},
+        token.Token{.Eq, transmute([]u8)string("="), 4},
         token.Token{.Not, transmute([]u8)string("~"), 4},
         token.Token{.Ne, transmute([]u8)string("~="), 4},
-        token.Token{.Eq, transmute([]u8)string("=="), 4},
+        token.Token{.EqEq, transmute([]u8)string("=="), 4},
         token.Token{.Gt, transmute([]u8)string(">"), 5},
         token.Token{.Ge, transmute([]u8)string(">="), 5},
         token.Token{.GtGt, transmute([]u8)string(">>"), 5},
@@ -259,7 +260,7 @@ test_lex_a_simple_proper_program :: proc(t: ^testing.T) {
 
         token.Token{.If, transmute([]u8)string("if"), 26},
         token.Token{.Identifier, transmute([]u8)string("m"), 26},
-        token.Token{.Eq, transmute([]u8)string("=="), 26},
+        token.Token{.EqEq, transmute([]u8)string("=="), 26},
         token.Token{.Integer, transmute([]u8)string("16"), 26},
         token.Token{.Then, transmute([]u8)string("then"), 26},
 
