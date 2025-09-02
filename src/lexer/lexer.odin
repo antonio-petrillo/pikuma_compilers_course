@@ -1,7 +1,5 @@
 package lexer
 
-import "../token"
-
 import "core:fmt"
 import "core:slice"
 
@@ -33,7 +31,7 @@ is_eof :: proc(lexer: ^Lexer) -> bool {
 
 match :: proc(lexer: ^Lexer, expected: u8) -> bool {
     using lexer
-    if source[current] != expected {
+    if is_eof(lexer) || source[current] != expected {
         return false
     }
     current += 1
@@ -66,8 +64,8 @@ is_digit :: proc(ch: u8) -> bool {
     return ch >= '0' && ch <= '9'
 }
 
-tokenize :: proc(lexer: ^Lexer) -> [dynamic]token.Token {
-    tokens := make([dynamic]token.Token) 
+tokenize :: proc(lexer: ^Lexer) -> [dynamic]Token {
+    tokens := make([dynamic]Token) 
     encountered_error := false
     column_index := 0
     defer {
@@ -84,7 +82,7 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]token.Token {
         column_index += 1
         lexer.start = lexer.current
         ch := advance(lexer) 
-        token_type: token.Token_Type
+        token_type: Token_Type
 
         switch ch {
         case '(': token_type = .LeftParen
@@ -107,10 +105,11 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]token.Token {
         case '~': token_type = match(lexer, '=') ? .Ne : .Not
         case '=': 
             if !match(lexer, '=') {
-                fmt.eprintf("Expected '=' after '='.") 
+                fmt.eprintf("Expected '=' after '='.\n") 
                 encountered_error = true
                 break loop
             }
+            token_type = .Eq
         case '>':
             if match(lexer, '=') do token_type = .Ge
             else if match(lexer, '>') do token_type = .GtGt
@@ -125,6 +124,7 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]token.Token {
             lexer.line += 1
             fallthrough
         case '\t', ' ':
+            column_index += 1
             continue loop
 
         case '0'..='9':
@@ -132,12 +132,12 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]token.Token {
             advance_until(lexer, is_digit)
 
             if match(lexer, '.') {
-                if is_digit(lookahead(lexer).? or_else 0) {
+                if is_digit(peek(lexer)) {
                     token_type = .Float
-                    lexer.current += 1 
                     advance_until(lexer, is_digit)
                 } else {
-                    fmt.eprintf("Error parsing a Float, expected <numbers> after '.'")
+                    fmt.eprintf("Error parsing a Float, expected <numbers> after '.'\n")
+                    fmt.eprintf("Current lexeme := %q\n", lexer.source[lexer.start:lexer.current])
                     encountered_error = true
                     break loop
                 }
@@ -151,11 +151,13 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]token.Token {
 
         case:
             token_type = .Identifier
-            is_not_whitespace :: proc(ch: u8) -> bool { return ch != ' ' && ch != '\t' && ch != '\n'}
-            advance_until(lexer, is_not_whitespace)
+            is_valid_character_for_identifier :: proc(ch: u8) -> bool {
+               return ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9' || ch == '_' 
+            }
+            advance_until(lexer, is_valid_character_for_identifier)
         }
 
-        tok := token.Token{
+        tok := Token{
             token_type = token_type,
             lexeme = lexer.source[lexer.start:lexer.current],
         }
@@ -182,7 +184,7 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]token.Token {
     return tokens
 }
 
-trasform_in_keyword_if_needed :: proc(tok: ^token.Token) {
+trasform_in_keyword_if_needed :: proc(tok: ^Token) {
     using tok
     size := len(lexeme)
     switch lexeme[0] {
@@ -209,7 +211,7 @@ trasform_in_keyword_if_needed :: proc(tok: ^token.Token) {
            token_type = .False 
         }
         if size == 4 && slice.simple_equal(lexeme, []u8{'f', 'u', 'n', 'c'}) {
-           token_type = .False 
+           token_type = .Func
         }
         if size == 3 && slice.simple_equal(lexeme, []u8{'f', 'o', 'r'}) {
            token_type = .For
@@ -242,7 +244,7 @@ trasform_in_keyword_if_needed :: proc(tok: ^token.Token) {
             token_type = .Println
         }
     case 'r':
-        if size == 6 && slice.simple_equal(lexeme, []u8{'r', 'e', 't', 'u', 'r', 'n'}) {
+        if size == 3 && slice.simple_equal(lexeme, []u8{'r', 'e', 't'}) {
             token_type = .Ret
         }
     }

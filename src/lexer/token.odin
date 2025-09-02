@@ -1,4 +1,4 @@
-package token
+package lexer
 
 import "core:fmt"
 import "core:strings"
@@ -97,10 +97,7 @@ Token :: struct {
     lexeme: []u8,
 }
 
-token_delete :: proc(tok: ^Token) {
-    delete(tok.lexeme)
-}
-
+// Note: the caller own the memory is it's job to free it
 token_to_string :: proc(tok: Token) -> string {
     builder := strings.builder_make()
 
