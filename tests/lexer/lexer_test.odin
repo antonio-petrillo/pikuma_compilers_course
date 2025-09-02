@@ -7,7 +7,7 @@ import "core:strings"
 import "core:testing"
 import "core:mem/virtual"
 
-import lexer_pkg "pinky:lexer"
+import "pinky:lexer"
 import "pinky:token"
 
 check_tokens_match_expected :: proc(t: ^testing.T, actual: [dynamic]token.Token, expected: []token.Token) {
@@ -44,8 +44,7 @@ all_token_source_data := #load("lexer_test_data.pinky")
 
 @(test)
 test_all_tokens_are_lexed_correctly :: proc(t: ^testing.T) {
-    lexer := lexer_pkg.new_lexer(all_token_source_data) 
-    tokens, err := lexer_pkg.tokenize(&lexer)
+    tokens, err := lexer.tokenize(all_token_source_data)
     defer delete(tokens)
 
     expected := []token.Token {
@@ -99,8 +98,8 @@ test_all_tokens_are_lexed_correctly :: proc(t: ^testing.T) {
         token.Token{.Identifier, transmute([]u8)string("another_var"), 19}, 
     }
 
-    if err != lexer_pkg.Tokenize_Error.None {
-        log.infof("Expected error := %s", lexer_pkg.tokenize_error_to_string(err))
+    if err != lexer.Tokenize_Error.None {
+        log.infof("Expected error := %s", lexer.tokenize_error_to_string(err))
         testing.fail(t)
     }
 
@@ -112,8 +111,7 @@ simple_pinky_program_data := #load("mandelbrot.pinky")
 
 @(test)
 test_lex_a_simple_proper_program :: proc(t: ^testing.T) {
-    lexer := lexer_pkg.new_lexer(simple_pinky_program_data) 
-    tokens, err := lexer_pkg.tokenize(&lexer)
+    tokens, err := lexer.tokenize(simple_pinky_program_data)
     defer delete(tokens)
 
     expected := []token.Token {
@@ -295,8 +293,8 @@ test_lex_a_simple_proper_program :: proc(t: ^testing.T) {
         token.Token{.End, transmute([]u8)string("end"), 35},
     }
 
-    if err != lexer_pkg.Tokenize_Error.None {
-        log.infof("Expected error := %s", lexer_pkg.tokenize_error_to_string(err))
+    if err != lexer.Tokenize_Error.None {
+        log.infof("Expected error := %s", lexer.tokenize_error_to_string(err))
         testing.fail(t)
     }
 

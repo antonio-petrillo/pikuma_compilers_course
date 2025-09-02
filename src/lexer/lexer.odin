@@ -2,61 +2,6 @@ package lexer
 
 import "pinky:token"
 
-Lexer :: struct {
-    source: []u8,
-    line: int,
-    start: int,
-    current: int,
-}
-
-new_lexer :: proc(source: []u8) -> Lexer {
-    return {
-        source = source,
-        line = 1,
-        start = 0,
-        current = 0,
-    }
-}
-
-peek :: proc(lexer: ^Lexer) -> u8 {
-    return lexer.source[lexer.current]
-}
-
-is_eof :: proc(lexer: ^Lexer) -> bool {
-    return lexer.current >= len(lexer.source)
-}
-
-match :: proc(lexer: ^Lexer, expected: u8) -> bool {
-    if is_eof(lexer) || lexer.source[lexer.current] != expected {
-        return false
-    }
-    lexer.current += 1
-    return true
-}
-
-advance :: proc(lexer: ^Lexer) -> u8 {
-    ch := lexer.source[lexer.current]
-    lexer.current += 1
-    return ch
-}
-
-advance_until :: proc(lexer: ^Lexer, predicate: proc(ch: u8) -> bool) {
-    for lexer.current < len(lexer.source) && predicate(lexer.source[lexer.current]) {
-        lexer.current += 1
-    }
-} 
-
-lookahead :: proc(lexer: ^Lexer, n: int = 1) -> Maybe(u8) {
-    if lexer.current + n >= len(lexer.source) {
-        return nil
-    }
-    return lexer.source[lexer.current + n]
-}
-
-is_digit :: proc(ch: u8) -> bool {
-    return ch >= '0' && ch <= '9'
-}
-
 Tokenize_Error :: enum {
     None,
     MalformedEqual,
@@ -77,15 +22,16 @@ tokenize_error_to_string :: proc(te: Tokenize_Error) -> (s: string) {
     return 
 }
 
-tokenize :: proc(lexer: ^Lexer) -> ([dynamic]token.Token, Tokenize_Error) {
+tokenize :: proc(source: []u8) -> ([dynamic]token.Token, Tokenize_Error) {
+    lexer := &Lexer{
+        source = source,
+        line = 1,
+        start = 0,
+        current = 0,
+    }
     tokens := make([dynamic]token.Token) 
     err: Tokenize_Error = .None
     encountered_error := false
-    defer {
-        lexer.line = 1
-        lexer.start = 0
-        lexer.current = 0
-    }
 
     if encountered_error {
         clear(&tokens)
@@ -184,7 +130,7 @@ tokenize :: proc(lexer: ^Lexer) -> ([dynamic]token.Token, Tokenize_Error) {
         }
 
         if token_type == .Identifier {
-            token.trasform_in_keyword_if_needed(&tok)
+            trasform_in_keyword_if_needed(&tok)
         }
 
         append(&tokens, tok)

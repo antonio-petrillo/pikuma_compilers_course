@@ -47,8 +47,7 @@ main :: proc() {
         os.exit(1)
     }
 
-    lexer_state := lexer.new_lexer(source)
-    tokens, lexer_err := lexer.tokenize(&lexer_state)
+    tokens, lexer_err := lexer.tokenize(source)
 
     if lexer_err != lexer.Tokenize_Error.None {
         fmt.eprintf("Error lexing source: %s\n", lexer.tokenize_error_to_string(lexer_err))
