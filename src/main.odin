@@ -4,7 +4,7 @@ import "core:fmt"
 import "core:mem"
 import "core:os"
 
-import "lexer"
+import "pinky:lexer"
 
 main :: proc() {
     if len(os.args) != 2 {
@@ -46,11 +46,15 @@ main :: proc() {
         os.exit(1)
     }
 
-    fmt.printf("source:\n%s\n", source)
-    _ = source
+    lexer_state := lexer.new_lexer(source)
+    tokens, lexer_err := lexer.tokenize(&lexer_state)
 
-    the_lexer := lexer.new_lexer(source)
-    tokens := lexer.tokenize(&the_lexer)
+    if lexer_err != lexer.Tokenize_Error.None {
+        fmt.eprintf("Error lexing source: %s\n", lexer.tokenize_error_to_string(lexer_err))
+        fmt.eprintf("Source: %s\n", source)
+        os.exit(1)
+    }
+
     defer delete(tokens)
 
     for &tok, index in tokens {

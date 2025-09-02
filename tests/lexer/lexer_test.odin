@@ -7,7 +7,7 @@ import "core:strings"
 import "core:testing"
 import "core:mem/virtual"
 
-import lexer_pkg "../../src/lexer"
+import lexer_pkg "pinky:lexer"
 
 check_tokens_match_expected :: proc(t: ^testing.T, actual: [dynamic]lexer_pkg.Token, expected: []lexer_pkg.Token) {
     msgs_arena: virtual.Arena
@@ -46,10 +46,6 @@ test_all_tokens_are_lexed_correctly :: proc(t: ^testing.T) {
     lexer := lexer_pkg.new_lexer(all_token_source_data) 
     tokens, err := lexer_pkg.tokenize(&lexer)
     defer delete(tokens)
-
-    msgs_arena: virtual.Arena
-    msgs_arena_allocator := virtual.arena_allocator(&msgs_arena)
-    defer virtual.arena_destroy(&msgs_arena)
 
     expected := []lexer_pkg.Token {
         lexer_pkg.Token{.LeftParen, transmute([]u8)string("("), 1},
@@ -118,10 +114,6 @@ test_lex_a_simple_proper_program :: proc(t: ^testing.T) {
     lexer := lexer_pkg.new_lexer(simple_pinky_program_data) 
     tokens, err := lexer_pkg.tokenize(&lexer)
     defer delete(tokens)
-
-    msgs_arena: virtual.Arena
-    msgs_arena_allocator := virtual.arena_allocator(&msgs_arena)
-    defer virtual.arena_destroy(&msgs_arena)
 
     expected := []lexer_pkg.Token {
         // func definition
