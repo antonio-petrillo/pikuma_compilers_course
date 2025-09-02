@@ -40,7 +40,7 @@ check_tokens_match_expected :: proc(t: ^testing.T, actual: [dynamic]token.Token,
 }
 
 @(rodata)
-all_token_source_data := #load("./lexer_test_data.pinky")
+all_token_source_data := #load("lexer_test_data.pinky")
 
 @(test)
 test_all_tokens_are_lexed_correctly :: proc(t: ^testing.T) {
