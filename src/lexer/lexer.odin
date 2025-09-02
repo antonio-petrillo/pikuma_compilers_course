@@ -67,7 +67,6 @@ is_digit :: proc(ch: u8) -> bool {
 tokenize :: proc(lexer: ^Lexer) -> [dynamic]Token {
     tokens := make([dynamic]Token) 
     encountered_error := false
-    column_index := 0
     defer {
         lexer.line = 1
         lexer.start = 0
@@ -79,7 +78,6 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]Token {
     }
 
     loop: for !is_eof(lexer) {
-        column_index += 1
         lexer.start = lexer.current
         ch := advance(lexer) 
         token_type: Token_Type
@@ -96,7 +94,13 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]Token {
         case '+': token_type = .Plus
         case '-': token_type = .Minus
         case '*': token_type = .Star
-        case '/': token_type = .Slash
+        case '/':
+            if match(lexer, '/') {
+                is_not_newline :: proc(ch: u8) -> bool { return ch != '\n' }
+                advance_until(lexer, is_not_newline)
+                continue loop  
+            }
+            token_type = .Slash
         case '^': token_type = .Caret
         case '%': token_type = .Mod
         case '?': token_type = .Question
@@ -120,11 +124,9 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]Token {
             else do token_type = .Lt
 
         case '\n':
-            column_index = 0
             lexer.line += 1
             fallthrough
         case '\t', ' ':
-            column_index += 1
             continue loop
 
         case '0'..='9':
@@ -171,7 +173,7 @@ tokenize :: proc(lexer: ^Lexer) -> [dynamic]Token {
 
     if encountered_error {
         fmt.eprintf("Encountered an error while lexing\n")
-        fmt.eprintf("At line <%d>, column <%d>\n", lexer.line, column_index)
+        fmt.eprintf("At line <%d>\n", lexer.line)
         fmt.eprintf("At byte offset in source := <%d>\n", lexer.current)
         if lexer.current < len(lexer.source) {
             fmt.eprintf("At the character := <%c>\n", lexer.source[lexer.current])

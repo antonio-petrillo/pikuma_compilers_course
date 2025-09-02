@@ -12,6 +12,8 @@ func mandelbrot(cx, cy)
     ret iter
 end
 
+// this is a comment and should be skipped
+
 height := 16
 width := 22
 yi := 0

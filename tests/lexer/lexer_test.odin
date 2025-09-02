@@ -9,6 +9,30 @@ import "core:mem/virtual"
 
 import lexer_pkg "../../src/lexer"
 
+check_tokens_match_expected :: proc(t: ^testing.T, actual: [dynamic]lexer_pkg.Token, expected: []lexer_pkg.Token) {
+    msgs_arena: virtual.Arena
+    msgs_arena_allocator := virtual.arena_allocator(&msgs_arena)
+    defer virtual.arena_destroy(&msgs_arena)
+
+    sb := strings.builder_make(allocator = msgs_arena_allocator)
+    if len(actual) != len(expected) {
+        testing.fail_now(t, fmt.sbprintf(&sb, "Lexed to wrong number of tokens, expected %d, got %d", len(expected), len(actual)))
+    }
+
+    for tok, index in actual {
+        strings.builder_reset(&sb)
+        testing.expect(t, tok.token_type == expected[index].token_type,
+                       fmt.sbprintf(&sb, "Expected token type %q, got %q",
+                                    lexer_pkg.token_type_to_string(expected[index].token_type),
+                                    lexer_pkg.token_type_to_string(tok.token_type)))
+        strings.builder_reset(&sb)
+        testing.expect(t, slice.simple_equal(tok.lexeme, expected[index].lexeme),
+                       fmt.sbprintf(&sb, "Expected lexeme to be %q, got %q",
+                                    expected[index].lexeme,
+                                    tok.lexeme))
+    }
+}
+
 @(rodata)
 all_token_source_data := #load("./lexer_test_data.pinky")
 
@@ -22,7 +46,7 @@ test_all_tokens_are_lexed_correctly :: proc(t: ^testing.T) {
     msgs_arena_allocator := virtual.arena_allocator(&msgs_arena)
     defer virtual.arena_destroy(&msgs_arena)
 
-    expecteds := []lexer_pkg.Token {
+    expected := []lexer_pkg.Token {
         lexer_pkg.Token{.LeftParen, transmute([]u8)string("(")},
         lexer_pkg.Token{.RightParen, transmute([]u8)string(")")}, 
         lexer_pkg.Token{.LeftSquare, transmute([]u8)string("[")},
@@ -72,31 +96,9 @@ test_all_tokens_are_lexed_correctly :: proc(t: ^testing.T) {
         lexer_pkg.Token{.Identifier, transmute([]u8)string("varname")}, 
         lexer_pkg.Token{.Identifier, transmute([]u8)string("another_var")}, 
     }
-    expecteds_size := len(expecteds)
 
-    for tok, index in tokens {
-        sb := strings.builder_make(allocator = msgs_arena_allocator)
-        if index >= expecteds_size {
-            testing.fail_now(t,
-                             fmt.sbprintf(&sb, "Lexed to many tokens, expected %d, got %d",
-                                          expecteds_size,
-                                          len(tokens)))
-        }
-
-        strings.builder_reset(&sb)
-        testing.expect(t, tok.token_type == expecteds[index].token_type,
-                       fmt.sbprintf(&sb, "Expected token type %q, got %q",
-                                    lexer_pkg.token_type_to_string(expecteds[index].token_type),
-                                    lexer_pkg.token_type_to_string(tok.token_type)))
-        strings.builder_reset(&sb)
-        testing.expect(t, slice.simple_equal(tok.lexeme, expecteds[index].lexeme),
-                       fmt.sbprintf(&sb, "Expected lexeme to be %q, got %q",
-                                    expecteds[index].lexeme,
-                                    tok.lexeme))
-    }
-
+    check_tokens_match_expected(t, tokens, expected)
 }
-
 
 @(rodata)
 simple_pinky_program_data := #load("mandelbrot.pinky")
@@ -111,7 +113,7 @@ test_lex_a_simple_proper_program :: proc(t: ^testing.T) {
     msgs_arena_allocator := virtual.arena_allocator(&msgs_arena)
     defer virtual.arena_destroy(&msgs_arena)
 
-    expecteds := []lexer_pkg.Token {
+    expected := []lexer_pkg.Token {
         // func definition
         lexer_pkg.Token{.Func, transmute([]u8)string("func")},
         lexer_pkg.Token{.Identifier, transmute([]u8)string("mandelbrot")}, 
@@ -289,26 +291,6 @@ test_lex_a_simple_proper_program :: proc(t: ^testing.T) {
 
         lexer_pkg.Token{.End, transmute([]u8)string("end")},
     }
-    expecteds_size := len(expecteds)
 
-    for tok, index in tokens {
-        sb := strings.builder_make(allocator = msgs_arena_allocator)
-        if index >= expecteds_size {
-            testing.fail_now(t,
-                             fmt.sbprintf(&sb, "Lexed to many tokens, expected %d, got %d",
-                                          expecteds_size,
-                                          len(tokens)))
-        }
-
-        strings.builder_reset(&sb)
-        testing.expect(t, tok.token_type == expecteds[index].token_type,
-                       fmt.sbprintf(&sb, "<%d-th> Expected token type %q, got %q", index,
-                                    lexer_pkg.token_type_to_string(expecteds[index].token_type),
-                                    lexer_pkg.token_type_to_string(tok.token_type)))
-        strings.builder_reset(&sb)
-        testing.expect(t, slice.simple_equal(tok.lexeme, expecteds[index].lexeme),
-                       fmt.sbprintf(&sb, "<%d-th> Expected lexeme to be %q, got %q", index,
-                                    expecteds[index].lexeme,
-                                    tok.lexeme))
-    }
+    check_tokens_match_expected(t, tokens, expected)
 }
