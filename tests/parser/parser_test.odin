@@ -5,10 +5,11 @@ import "core:mem/virtual"
 import "core:strings"
 import "core:testing"
 
+import "pinky:ast"
 import "pinky:lexer"
 import "pinky:parser"
 
-setup_parser :: proc(t: ^testing.T, source: []u8, arena: ^virtual.Arena) -> [dynamic]parser.AstNode {
+setup_parser :: proc(t: ^testing.T, source: []u8, arena: ^virtual.Arena) -> [dynamic]ast.AstNode {
     tokens, lexer_err := lexer.tokenize(source, arena) 
     assert(lexer_err == lexer.Tokenize_Error.None)
 
@@ -22,59 +23,59 @@ setup_parser :: proc(t: ^testing.T, source: []u8, arena: ^virtual.Arena) -> [dyn
     return nodes
 }
 
-compare_expr :: proc(a, b: parser.Expr) -> bool {
+compare_expr :: proc(a, b: ast.Expr) -> bool {
     result := true 
     switch expr in a {
-    case parser.Integer:
-        num, ok := b.(parser.Integer)
+    case ast.Integer:
+        num, ok := b.(ast.Integer)
         if !ok do return false
         result = expr == num
 
-    case parser.Float:
-        num, ok := b.(parser.Float)
+    case ast.Float:
+        num, ok := b.(ast.Float)
         if !ok do return false
         result = expr == num
 
-    case ^parser.BinOp:
-        other_expr, ok := b.(^parser.BinOp)
+    case ^ast.BinOp:
+        other_expr, ok := b.(^ast.BinOp)
         if !ok do return false
         result = expr.kind == other_expr.kind &&
             compare_expr(expr.left, other_expr.left) &&
             compare_expr(expr.right, other_expr.right)
 
-    case ^parser.UnaryOp:
-        other_expr, ok := b.(^parser.UnaryOp)
+    case ^ast.UnaryOp:
+        other_expr, ok := b.(^ast.UnaryOp)
         if !ok do return false
         result = expr.kind == other_expr.kind && compare_expr(expr.operand, other_expr.operand)
 
-    case ^parser.Grouping:
-        other_expr, ok := b.(^parser.Grouping)
+    case ^ast.Grouping:
+        other_expr, ok := b.(^ast.Grouping)
         if !ok do return false
         result = compare_expr(expr.expr, other_expr.expr)
     }
     return result
 }
 
-compare_stmt :: proc(a, b: parser.Stmt) -> bool {
+compare_stmt :: proc(a, b: ast.Stmt) -> bool {
     result := true
     switch kind in a {
-    case ^parser.WhileStmt:
-        _, result = b.(^parser.WhileStmt)
-    case ^parser.IfStmt:
-        _, result = b.(^parser.WhileStmt)
+    case ^ast.WhileStmt:
+        _, result = b.(^ast.WhileStmt)
+    case ^ast.IfStmt:
+        _, result = b.(^ast.WhileStmt)
     }
     return result
 }
 
-compare_ast_node :: proc(a, b: parser.AstNode) -> bool {
+compare_ast_node :: proc(a, b: ast.AstNode) -> bool {
     result := true
     switch kind in a {
-    case parser.Expr:
-        expr, ok := b.(parser.Expr)
+    case ast.Expr:
+        expr, ok := b.(ast.Expr)
         if !ok do return false
         result = compare_expr(kind, expr)
-    case parser.Stmt:
-        expr, ok := b.(parser.Stmt)
+    case ast.Stmt:
+        expr, ok := b.(ast.Stmt)
         if !ok do return false
         result = compare_stmt(kind, expr)
     }
@@ -82,7 +83,7 @@ compare_ast_node :: proc(a, b: parser.AstNode) -> bool {
     return result
 }
 
-compare_actual_and_expected :: proc(t: ^testing.T, actual: [dynamic]parser.AstNode, expected: []parser.AstNode) {
+compare_actual_and_expected :: proc(t: ^testing.T, actual: [dynamic]ast.AstNode, expected: []ast.AstNode) {
     msgs_arena: virtual.Arena
     msgs_arena_allocator := virtual.arena_allocator(&msgs_arena)
     defer virtual.arena_destroy(&msgs_arena)
@@ -109,48 +110,48 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
 
     defer free_all(context.temp_allocator)
 
-    using parser
+    using ast
 
     expected := []AstNode{
-        parser.Expr(&BinOp{
-            kind = .Addition,
+        ast.Expr(&BinOp{
+            kind = .Add,
             left = &UnaryOp{
                 kind = .Negate,
                 operand = Integer(2),
             },
-            right = &parser.BinOp{
-                kind = .Multiplication,
+            right = &ast.BinOp{
+                kind = .Mul,
                 left = Integer(42),
                 right = Integer(2),
             },
         }),
 
-        parser.Expr(&Grouping{
+        ast.Expr(&Grouping{
             expr = &BinOp {
-                kind = .Addition,
+                kind = .Add,
                 left = &BinOp{
-                    kind = .Addition,
+                    kind = .Add,
                     left = &UnaryOp{
                         kind = .Negate,
                         operand = Integer(1),
                     },
                     right = &UnaryOp{
-                        kind = .Positive,
+                        kind = .Pos,
                         operand = Integer(1),
                     },
                 },
                 right = &UnaryOp{
-                    kind = .LogicalNegate,
+                    kind = .Not,
                     operand = Integer(1),
                 },
             }
         }),
         Expr(&BinOp{
-            kind = BinaryOpKind.Addition,
+            kind = BinaryOpKind.Add,
             left = &BinOp{
-                kind = .Addition,
+                kind = .Add,
                 left = &BinOp{
-                    kind = .Addition,
+                    kind = .Add,
                     left = Integer(2),
                     right = Integer(2),
                 },
@@ -159,25 +160,25 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
             right = Integer(2),
         }),
         Expr(&BinOp{
-            kind = .Multiplication,
+            kind = .Mul,
             left = Integer(2),
             right = &BinOp{
-                kind = .Multiplication,
+                kind = .Mul,
                 left = Integer(2),
                 right = &BinOp{
-                    kind = .Multiplication,
+                    kind = .Mul,
                     left = Integer(2),
                     right = Integer(2),
                 }
             }
         }),
         Expr(&BinOp{
-            kind = .Addition,
+            kind = .Add,
             left = &BinOp{
-                kind = .Addition,
+                kind = .Add,
                 left = Integer(1),
                 right = &BinOp{
-                    kind = .Multiplication,
+                    kind = .Mul,
                     left = Integer(2),
                     right = Integer(2),
                 }
@@ -185,51 +186,51 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
             right = Integer(1),
         }),
         Expr(&BinOp{
-            kind = .Multiplication,
+            kind = .Mul,
             left = &Grouping{
                 expr = &BinOp{
-                    kind = .Addition,
+                    kind = .Add,
                     left = Integer(1),
                     right = Integer(2),
                 }
             },
             right = &Grouping{
                 expr = &BinOp{
-                    kind = .Addition,
+                    kind = .Add,
                     left = Integer(2),
                     right = Integer(1),
                 }
             },
         }),
         Expr(&BinOp{
-            kind = .Subtraction,
+            kind = .Sub,
             left = &BinOp{
-                kind = .Addition,
+                kind = .Add,
                 left = Integer(1),
                 right = Integer(2),
             },
             right = &BinOp{
-                kind = .Multiplication,
+                kind = .Mul,
                 left = Integer(3),
                 right = &BinOp{
-                    kind = .Division,
+                    kind = .Div,
                     left = Integer(4),
                     right = Integer(5),
                 }
             },
         }),
         Expr(&BinOp{
-            kind = .Subtraction,
+            kind = .Sub,
             left = &BinOp{
-                kind = .Addition,
+                kind = .Add,
                 left = Float(1.0),
                 right = Float(2.1),
             },
             right = &BinOp{
-                kind = .Multiplication,
+                kind = .Mul,
                 left = Float(3.2),
                 right = &BinOp{
-                    kind = .Division,
+                    kind = .Div,
                     left = Float(4.3),
                     right = Float(5.4),
                 }

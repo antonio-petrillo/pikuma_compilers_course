@@ -5,6 +5,7 @@ import "core:mem"
 import "core:mem/virtual"
 import "core:os"
 
+import "pinky:ast"
 import "pinky:lexer"
 import "pinky:token"
 import "pinky:parser"
@@ -77,7 +78,7 @@ main :: proc() {
     }
 
     for node, index in nodes {
-        str := parser.ast_to_string(node)
+        str := ast.ast_to_string(node)
         defer delete(str)
         fmt.printf("node[%d] := %s\n", index, str)
     }

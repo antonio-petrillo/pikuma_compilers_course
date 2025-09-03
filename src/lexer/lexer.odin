@@ -24,7 +24,6 @@ tokenize_error_to_string :: proc(te: Tokenize_Error) -> (s: string) {
 }
 
 
-
 tokenize :: proc(source: []u8, lexer_arena: ^virtual.Arena) -> ([dynamic]token.Token, Tokenize_Error) {
     arena_allocator := virtual.arena_allocator(lexer_arena)
     context.allocator = arena_allocator
