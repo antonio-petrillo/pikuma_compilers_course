@@ -1,6 +1,6 @@
 -- Note: this is a valid pinky source code
--- The text after '--' is considered a comment
--- Is the expected output of the parser in polish notation
+-- The text after '--' is considered a comment by the lexer hence it is skipped like this line
+-- The text after '--' below is the expected output of the parser in polish notation
 
 -2 + 42 * 2 -- (+ (-2) (* 42 2))
 (-1 + +1 + ~1) -- (+ (-1) (+ (+ 1) (~ 1)))
@@ -8,3 +8,5 @@
 2 * 2 * 2 * 2 -- (* 2 (* 2 (* 2  2)))
 1 + 2 * 2 + 1 -- (+ (+ 1 (* 2 2)) 1)
 (1 + 2) * (2 + 1) -- (* (+ 1 2) (+ 2 1))
+1 + 2 - 3 * 4 / 5 -- (- (+ 1 2) (* 3 (/ 4 5)))
+1.0 + 2.1 - 3.2 * 4.3 / 5.4

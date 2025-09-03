@@ -201,9 +201,42 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
                 }
             },
         }),
+        Expr(&BinOp{
+            kind = .Subtraction,
+            left = &BinOp{
+                kind = .Addition,
+                left = Integer(1),
+                right = Integer(2),
+            },
+            right = &BinOp{
+                kind = .Multiplication,
+                left = Integer(3),
+                right = &BinOp{
+                    kind = .Division,
+                    left = Integer(4),
+                    right = Integer(5),
+                }
+            },
+        }),
+        Expr(&BinOp{
+            kind = .Subtraction,
+            left = &BinOp{
+                kind = .Addition,
+                left = Float(1.0),
+                right = Float(2.1),
+            },
+            right = &BinOp{
+                kind = .Multiplication,
+                left = Float(3.2),
+                right = &BinOp{
+                    kind = .Division,
+                    left = Float(4.3),
+                    right = Float(5.4),
+                }
+            },
+        }),
     }
         
     nodes := setup_parser(t, only_math_expressions, &parser_arena)
     compare_actual_and_expected(t, nodes, expected)
-    
 }
