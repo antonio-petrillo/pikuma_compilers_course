@@ -1,0 +1,10 @@
+-- Note: this is a valid pinky source code
+-- The text after '--' is considered a comment
+-- Is the expected output of the parser in polish notation
+
+-2 + 42 * 2 -- (+ (-2) (* 42 2))
+(-1 + +1 + ~1) -- (+ (-1) (+ (+ 1) (~ 1)))
+2 + 2 + 2 + 2 -- (+ 2 (+ 2 (+ 2  2)))
+2 * 2 * 2 * 2 -- (* 2 (* 2 (* 2  2)))
+1 + 2 * 2 + 1 -- (+ (+ 1 (* 2 2)) 1)
+(1 + 2) * (2 + 1) -- (* (+ 1 2) (+ 2 1))

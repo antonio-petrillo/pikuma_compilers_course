@@ -10,13 +10,11 @@ import "pinky:lexer"
 import "pinky:token"
 
 check_tokens_match_expected :: proc(t: ^testing.T, actual: [dynamic]token.Token, expected: []token.Token) {
-    msgs_arena: virtual.Arena
-    msgs_arena_allocator := virtual.arena_allocator(&msgs_arena)
-    defer virtual.arena_destroy(&msgs_arena)
+    defer free_all(context.temp_allocator)
 
-    sb := strings.builder_make(allocator = msgs_arena_allocator)
+    sb := strings.builder_make(allocator = context.temp_allocator)
     if len(actual) != len(expected) {
-        testing.fail_now(t, fmt.sbprintf(&sb, "Lexed to wrong number of tokens, expected %d, got %d", len(expected), len(actual)))
+        testing.fail_now(t, fmt.sbprintf(&sb, "Lexed to wrong number of tokens: expected %d, got %d", len(expected), len(actual)))
     }
 
     for tok, index in actual {
@@ -39,7 +37,7 @@ check_tokens_match_expected :: proc(t: ^testing.T, actual: [dynamic]token.Token,
 }
 
 @(rodata)
-all_token_source_data := #load("lexer_test_data.pinky")
+all_token_source_data := #load("../test_data/pinky_tokens_for_lexing.txt")
 
 @(test)
 test_all_tokens_are_lexed_correctly :: proc(t: ^testing.T) {
@@ -109,7 +107,7 @@ test_all_tokens_are_lexed_correctly :: proc(t: ^testing.T) {
 }
 
 @(rodata)
-simple_pinky_program_data := #load("mandelbrot.pinky")
+simple_pinky_program_data := #load("../test_data/mandelbrot.pinky")
 
 @(test)
 test_lex_a_simple_proper_program :: proc(t: ^testing.T) {
