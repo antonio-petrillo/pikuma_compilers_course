@@ -1,5 +1,8 @@
 package lexer
 
+import "core:mem/virtual"
+import "core:strings"
+
 import "pinky:token"
 
 Tokenize_Error :: enum {
@@ -7,9 +10,9 @@ Tokenize_Error :: enum {
     UnclosedString,
     MalformedFloat,
     UnexpectedEOF,
-    
 }
 
+// The returned string is static and should be deallocated
 tokenize_error_to_string :: proc(te: Tokenize_Error) -> (s: string) {
     switch te {
     case .None: s = "None"
@@ -20,13 +23,19 @@ tokenize_error_to_string :: proc(te: Tokenize_Error) -> (s: string) {
     return 
 }
 
-tokenize :: proc(source: []u8) -> ([dynamic]token.Token, Tokenize_Error) {
+
+
+tokenize :: proc(source: []u8, lexer_arena: ^virtual.Arena) -> ([dynamic]token.Token, Tokenize_Error) {
+    arena_allocator := virtual.arena_allocator(lexer_arena)
+    context.allocator = arena_allocator
+
     lexer := &Lexer{
         source = source,
         line = 1,
         start = 0,
         current = 0,
     }
+    
     tokens := make([dynamic]token.Token) 
     err: Tokenize_Error = .None
     encountered_error := false
@@ -117,7 +126,7 @@ tokenize :: proc(source: []u8) -> ([dynamic]token.Token, Tokenize_Error) {
 
         tok := token.Token{
             token_type = token_type,
-            lexeme = lexer.source[lexer.start:lexer.current],
+            lexeme = strings.clone_from_bytes(lexer.source[lexer.start:lexer.current]),
             line = lexer.line,
         }
 

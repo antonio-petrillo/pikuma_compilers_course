@@ -95,7 +95,7 @@ token_type_to_string :: proc(tt: Token_Type) -> (s: string) {
 
 Token :: struct {
     token_type: Token_Type,
-    lexeme: []u8,
+    lexeme: string,
     line: int,
 }
 
@@ -104,7 +104,7 @@ token_to_string :: proc(tok: Token) -> string {
     builder := strings.builder_make()
 
     return fmt.sbprintf(&builder,
-                        "Token(TokenType: '%s', Lexeme: '%s', Line: %d)",
+                        "Token(TokenType: %q, Lexeme: %q, Line: %d)",
                         token_type_to_string(tok.token_type),
                         tok.lexeme,
                         tok.line)

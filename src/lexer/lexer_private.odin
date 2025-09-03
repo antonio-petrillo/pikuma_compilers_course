@@ -1,8 +1,6 @@
 #+private
 package lexer
 
-import "core:slice"
-
 import "pinky:token"
 
 Lexer :: struct {
@@ -60,58 +58,60 @@ trasform_in_keyword_if_needed :: proc(tok: ^token.Token) {
             tok.token_type = .If
         }
     case 't':
-        if size == 4 && slice.simple_equal(tok.lexeme, []u8{'t', 'r', 'u', 'e'}) {
-            tok.token_type = .True
+        if size != 4 {
+            return
         }
-        if size == 4 && slice.simple_equal(tok.lexeme, []u8{'t', 'h', 'e', 'n'}) {
+        if tok.lexeme == "true" {
+            tok.token_type = .True
+        } else if tok.lexeme == "then" {
             tok.token_type = .Then
         }
     case 'e':
-        if size == 4 && slice.simple_equal(tok.lexeme, []u8{'e', 'l', 's', 'e'}) {
+        if size == 4 && tok.lexeme == "else" {
             tok.token_type = .Else
         }
-        if size == 3 && slice.simple_equal(tok.lexeme, []u8{'e', 'n', 'd'}) {
+        if size == 3 && tok.lexeme == "end" {
             tok.token_type = .End
         }
     case 'f':
-        if size == 5 && slice.simple_equal(tok.lexeme, []u8{'f', 'a', 'l', 's', 'e'}) {
+        if size == 5 && tok.lexeme == "false" {
            tok.token_type = .False 
         }
-        if size == 4 && slice.simple_equal(tok.lexeme, []u8{'f', 'u', 'n', 'c'}) {
+        if size == 4 && tok.lexeme == "func" {
            tok.token_type = .Func
         }
-        if size == 3 && slice.simple_equal(tok.lexeme, []u8{'f', 'o', 'r'}) {
+        if size == 3 && tok.lexeme == "for" {
            tok.token_type = .For
         }
     case 'a':
-        if size == 3 && slice.simple_equal(tok.lexeme, []u8{'a', 'n', 'd'}) {
+        if size == 3 && tok.lexeme == "and" {
             tok.token_type = .And
         }
     case 'o':
-        if size == 2 && tok.lexeme[1] == 'r' {
+        if size == 2 && tok.lexeme == "or"  {
             tok.token_type = .Or
         }
     case 'w':
-        if size == 5 && slice.simple_equal(tok.lexeme, []u8{'w', 'h', 'i', 'l', 'e'}) {
+        if size == 5 && tok.lexeme == "while" {
             tok.token_type = .While
         }
     case 'd':
-        if size == 2 && tok.lexeme[1] == 'o' {
+        if size == 2 && tok.lexeme == "do" {
             tok.token_type = .Do
         }
     case 'n':
-        if size == 4 && slice.simple_equal(tok.lexeme, []u8{'n', 'u', 'l', 'l'}) {
+        if size == 4 && tok.lexeme == "null" {
             tok.token_type = .Null
         }
     case 'p':
-        if size == 5 && slice.simple_equal(tok.lexeme, []u8{'p', 'r', 'i', 'n', 't'}) {
+        if size == 5 && tok.lexeme == "print" {
             tok.token_type = .Print
         }
-        if size == 7 && slice.simple_equal(tok.lexeme, []u8{'p', 'r', 'i', 'n', 't', 'l', 'n'}) {
+        if size == 7 && tok.lexeme == "println" {
             tok.token_type = .Println
         }
     case 'r':
-        if size == 3 && slice.simple_equal(tok.lexeme, []u8{'r', 'e', 't'}) {
+        if size == 3 && tok.lexeme == "ret" {
             tok.token_type = .Ret
         }
     }
