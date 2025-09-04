@@ -6,6 +6,7 @@ import "core:mem/virtual"
 import "core:os"
 
 import "pinky:ast"
+import "pinky:interpreter"
 import "pinky:lexer"
 import "pinky:token"
 import "pinky:parser"
@@ -45,6 +46,16 @@ main :: proc() {
     filename := os.args[1]
     source, err := os.read_entire_file_from_filename_or_err(filename)
 
+    {
+        fmt.printf("#########################\n")
+        fmt.printf("#####  SOURCE CODE: #####\n")
+        fmt.printf("#########################\n")
+
+        defer fmt.print("#########################\n#########################\n\n")
+
+        fmt.printf("%s\n", source)
+    }
+
     if err != os.General_Error.None {
         fmt.eprintf("Error reading file <%s>, error := %s", filename, os.error_string(err))
         os.exit(1)
@@ -63,13 +74,18 @@ main :: proc() {
     delete(source)
     defer delete(tokens)
 
-    for &tok, index in tokens {
-        str := token.token_to_string(tok)
-        defer delete(str)
-        fmt.printf("tokens[%2d-th] := %s\n", index, str)
-    }
+    {
+        fmt.print("#########################")
+        fmt.print("##### TOKENS LEXED: #####")
+        fmt.print("#########################")
+        defer fmt.print("#########################\n#########################\n\n")
 
-    fmt.println()
+        for &tok, index in tokens {
+            str := token.token_to_string(tok)
+            defer delete(str)
+            fmt.printf("tokens[%2d-th] := %s\n", index, str)
+        }
+    }
 
     nodes, parser_err := parser.parse(tokens[:], &arena)
     if parser_err != parser.Parser_Error.None {
@@ -77,10 +93,30 @@ main :: proc() {
         os.exit(1)
     }
 
-    for node, index in nodes {
-        str := ast.ast_to_string(node)
-        defer delete(str)
-        fmt.printf("node[%d] := %s\n", index, str)
+    {
+        fmt.print("###########################\n")
+        fmt.print("#######  AST NODES: #######\n")
+        fmt.print("###########################\n")
+        defer fmt.print("#########################\n#########################\n\n")
+
+        for &node, index in nodes {
+            str := ast.ast_to_string(node)
+            defer delete(str)
+            fmt.printf("node[%d] := %s\n", index, str)
+        }
+    }
+
+    {
+        fmt.print("###########################\n")
+        fmt.print("#######  TREE WALK: #######\n")
+        fmt.print("###########################\n")
+        defer fmt.print("#########################\n#########################\n\n")
+
+        for &node, index in nodes {
+            str := ast.ast_to_string_summary(node)
+            defer delete(str)
+            fmt.printf("node[%d] expr %q := %f\n", index, str, interpreter.interpret(node))
+        }
     }
 
 }

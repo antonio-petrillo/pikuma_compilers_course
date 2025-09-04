@@ -85,6 +85,42 @@ ast_to_string :: proc(ast: AstNode) -> (s: string) {
     return strings.to_string(sb)
 }
 
+ast_to_string_summary :: proc(ast: AstNode) -> (s: string) {
+    sb := strings.builder_make()
+    ast_to_string_summary_with_builder(ast, &sb)
+    return strings.to_string(sb)
+}
+
+@(private)
+ast_to_string_summary_with_builder :: proc(ast: AstNode, sb: ^strings.Builder) {
+    switch node in ast {
+    case Expr:
+        switch expr in node {
+        case Integer:
+            strings.write_i64(sb, expr)
+        case Float:
+            strings.write_f64(sb, expr, 'f')
+        case ^BinOp:
+            ast_to_string_summary_with_builder(expr.left, sb)
+            strings.write_byte(sb, ' ')
+            strings.write_string(sb, binary_op_kind_to_string(expr.kind))
+            strings.write_byte(sb, ' ')
+            ast_to_string_summary_with_builder(expr.right, sb)
+        case ^UnaryOp:
+            strings.write_string(sb, unary_op_kind_to_string(expr.kind))
+            ast_to_string_summary_with_builder(expr.operand, sb)
+        case ^Grouping:
+            strings.write_string(sb, "(")
+            ast_to_string_summary_with_builder(expr.expr, sb)
+            strings.write_string(sb, ")")
+        }
+    case Stmt:
+        switch stmt in node {
+        case ^WhileStmt:
+        case ^IfStmt:
+        }
+    }
+}
 
 pad_builder :: proc(sb: ^strings.Builder, pad: int, pad_str: string = "  ") {
     for _ in 0..<pad {
@@ -92,6 +128,7 @@ pad_builder :: proc(sb: ^strings.Builder, pad: int, pad_str: string = "  ") {
     }
 }
 
+@(private)
 ast_to_string_with_builder :: proc(ast: AstNode, sb: ^strings.Builder, indentation: int = 0) {
     pad_builder(sb, indentation)
     switch node in ast {
