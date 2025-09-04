@@ -6,6 +6,10 @@ Integer :: i64
 
 Float :: f64
 
+String :: string
+
+Bool :: bool
+
 BinaryOpKind :: enum {
     Add,
     Sub,
@@ -56,6 +60,8 @@ Grouping :: struct {
 Expr :: union #no_nil {
     Integer, 
     Float,
+    String,
+    Bool,
     ^BinOp,
     ^UnaryOp,
     ^Grouping,
@@ -100,6 +106,11 @@ ast_to_string_summary_with_builder :: proc(ast: AstNode, sb: ^strings.Builder) {
             strings.write_i64(sb, expr)
         case Float:
             strings.write_f64(sb, expr, 'f')
+        case String:
+            strings.write_string(sb, expr)
+        case Bool:
+            bool_str := expr ? "true" : "false"
+            strings.write_string(sb, bool_str)
         case ^BinOp:
             ast_to_string_summary_with_builder(expr.left, sb)
             strings.write_byte(sb, ' ')
@@ -141,6 +152,14 @@ ast_to_string_with_builder :: proc(ast: AstNode, sb: ^strings.Builder, indentati
         case Float:
             strings.write_string(sb, "Float := <")
             strings.write_f64(sb, expr, 'f')
+            strings.write_byte(sb, '>')
+        case String:
+            strings.write_string(sb, "String := ")
+            strings.write_string(sb, expr)
+        case Bool:
+            strings.write_string(sb, "Bool := <")
+            bool_str := expr ? "true" : "false"
+            strings.write_string(sb, bool_str)
             strings.write_byte(sb, '>')
         case ^BinOp:
             defer {

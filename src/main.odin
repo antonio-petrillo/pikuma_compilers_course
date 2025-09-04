@@ -115,7 +115,15 @@ main :: proc() {
         for &node, index in nodes {
             str := ast.ast_to_string_summary(node)
             defer delete(str)
-            fmt.printf("node[%d] expr %q := %f\n", index, str, interpreter.interpret(node))
+            result, err := interpreter.interpret(node, &arena)
+            if err != interpreter.Interpreter_Error.None {
+                fmt.printf("Interpreter Error: %s\n", interpreter.interpreter_error_to_string(err))
+                continue
+            }
+
+            result_str := ast.ast_to_string_summary(result)
+            defer delete(result_str)
+            fmt.printf("node[%d] expr<%s> := %s\n", index, str, result_str)
         }
     }
 

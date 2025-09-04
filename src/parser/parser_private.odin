@@ -2,6 +2,7 @@
 package parser
 
 import "core:strconv"
+import "core:strings"
 
 import "pinky:token"
 import "pinky:ast"
@@ -145,7 +146,7 @@ parse_primary :: proc(parser: ^Parser) -> (ast.Expr, Parser_Error) {
         case token.Token_Type.Integer:
         num, ok := strconv.parse_i64_of_base(tok.lexeme, 10)
         if !ok {
-            return expr, .InvalidFloat
+            return expr, .InvalidInteger
         }
         return ast.Integer(num), .None
 
@@ -155,6 +156,14 @@ parse_primary :: proc(parser: ^Parser) -> (ast.Expr, Parser_Error) {
             return expr, .InvalidFloat
         }
         return ast.Float(num), .None
+
+        case token.Token_Type.True, token.Token_Type.False:
+        return ast.Bool(tok.lexeme == "true"), .None
+
+        case token.Token_Type.String:
+        str := strings.trim(tok.lexeme, "\"")
+        return ast.String(str), .None
+
         case: 
         return expr, .InvalidPrimaryExpression
     }

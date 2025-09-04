@@ -36,6 +36,16 @@ compare_expr :: proc(a, b: ast.Expr) -> bool {
         if !ok do return false
         result = expr == num
 
+    case ast.Bool:
+        bool_val, ok := b.(ast.Bool)
+        if !ok do return false
+        result = expr == bool_val
+
+    case ast.String:
+        str, ok := b.(ast.String)
+        if !ok do return false
+        result = expr == str
+
     case ^ast.BinOp:
         other_expr, ok := b.(^ast.BinOp)
         if !ok do return false
@@ -101,7 +111,7 @@ compare_actual_and_expected :: proc(t: ^testing.T, actual: [dynamic]ast.AstNode,
 }
 
 @(rodata)
-only_math_expressions := #load("../test_data/math_expressions.pinky")
+only_math_expressions := #load("../test_data/expressions.pinky")
 
 @(test)
 test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
@@ -147,7 +157,7 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
             }
         }),
         Expr(&BinOp{
-            kind = BinaryOpKind.Add,
+            kind = .Add,
             left = &BinOp{
                 kind = .Add,
                 left = &BinOp{
@@ -235,6 +245,16 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
                     right = Float(5.4),
                 }
             },
+        }),
+        Expr(String("asdf")),
+        Expr(&BinOp{
+            kind = .Add,
+            left = &BinOp{
+                kind = .Add,
+                left = String("Hello"),
+                right = String(" ,")
+            },
+            right = String("World!"),
         }),
     }
         
