@@ -4,3 +4,52 @@
 ~false
 1 + 2 - 3 * 4 / 5
 "Hello, " + "World!"
+3 % 2
+4 % 2
+124314314 % 17
+124314314 / 17
+(124314314 / 17) * 17 + 124314314 % 17 --- hmmm, wrong parsing here
+124314314 / 17 * 17 + 124314314 % 17 --- hmmm, wrong parsing here
+2^10
+1.414 ^ 2.0
+true
+false
+true == true
+false == true
+false == false
+2 > 2
+2 >= 2
+2 < 2
+2 == 2
+2 <= 2
+2.0 > 2.0
+2.0 >= 2.0
+2.0 < 2.0
+2.0 == 2.0
+2.0 <= 2.0
+"hello" == "hello"
+"hello" > "hello"
+"world" > "hello"
+"hello" >= "hello"
+"hello" < "hello"
+"hello" < "world"
+"hello" <= "hello"
+1 << 10
+1024 >> 10
+
+true and true
+true and false
+false and true
+false and false
+
+true or true
+true or false
+false or true
+false or false
+
+1 == 1 and 1.0 == 1.0
+0.00001 + 0.00002
+0.00001 + 0.00002 == 0.00003
+
+true == ~false
+true == ~true

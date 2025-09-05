@@ -30,6 +30,10 @@ peek :: proc(parser: ^Parser) -> token.Token {
     return parser.tokens[parser.current]
 }
 
+previous :: proc(parser: ^Parser) -> token.Token {
+    return parser.tokens[parser.current - 1]
+}
+
 consume :: proc(parser: ^Parser) {
     parser.current += 1
 }
@@ -42,62 +46,139 @@ match :: proc(parser: ^Parser, token_type: token.Token_Type) -> bool {
     return true
 }
 
+match_any :: proc(parser: ^Parser, token_types: ..token.Token_Type) -> bool {
+    if is_eof(parser) do return false
+    current_tok_type := parser.tokens[parser.current].token_type
+    for token_type in token_types {
+        if current_tok_type == token_type {
+            parser.current += 1
+            return true
+        }
+    }
+    return false
+}
+
 is_eof :: proc(parser: ^Parser) -> bool {
     return parser.current >= len(parser.tokens)
 }
 
 parse_expr :: proc(parser: ^Parser) -> (ast.Expr, Parser_Error) {
-    return parse_addition(parser)
+    return parse_and(parser)
 }
 
-parse_addition :: proc(parser: ^Parser) -> (ast.Expr, Parser_Error) {
-    multiplication, err := parse_multiplication(parser)
-    if err != .None {
-        return multiplication, err
+parse_and :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
+    or := parse_or(parser) or_return
+
+    for match(parser, token.Token_Type.And) {
+        bin_op := new(ast.BinOp)
+        bin_op.left = or
+        bin_op.kind = .And
+        bin_op.right = parse_and(parser) or_return
+        or = bin_op
     }
-    for !is_eof(parser) {
-        tok := peek(parser)
-        if tok.token_type != token.Token_Type.Plus && tok.token_type != token.Token_Type.Minus {
-            break
+
+    return or, .None
+}
+
+parse_or :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
+    comparison := parse_comparison(parser) or_return
+
+    for match(parser, token.Token_Type.Or) {
+        bin_op := new(ast.BinOp)
+        bin_op.left = comparison
+        bin_op.kind = .Or
+        bin_op.right = parse_or(parser) or_return
+        comparison = bin_op
+    }
+
+    return comparison, .None
+}
+
+parse_comparison :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
+    addition := parse_addition(parser) or_return
+
+    for match_any(parser,
+                  token.Token_Type.Eq, // why he also add this?
+                  token.Token_Type.EqEq,
+                  token.Token_Type.Lt,
+                  token.Token_Type.Gt,
+                  token.Token_Type.Le,
+                  token.Token_Type.Ge) {
+        tok := previous(parser)
+        bin_op := new(ast.BinOp)
+        bin_op.left = addition
+        #partial switch tok.token_type {
+            case token.Token_Type.Eq, token.Token_Type.EqEq: bin_op.kind = ast.BinaryOpKind.Eq
+            case token.Token_Type.Lt: bin_op.kind = ast.BinaryOpKind.Lt
+            case token.Token_Type.Le: bin_op.kind = ast.BinaryOpKind.Le
+            case token.Token_Type.Gt: bin_op.kind = ast.BinaryOpKind.Gt
+            case token.Token_Type.Ge: bin_op.kind = ast.BinaryOpKind.Ge
+            case: // noop
         }
-        consume(parser) // discard + or -
+        bin_op.right = parse_comparison(parser) or_return
+        addition = bin_op
+    }
+
+    return addition, .None
+}
+
+parse_addition :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
+    multiplication := parse_multiplication(parser) or_return
+    for match_any(parser, token.Token_Type.Plus, token.Token_Type.Minus) {
+        tok := previous(parser)
         bin_op := new(ast.BinOp) 
         bin_op.left = multiplication
         bin_op.kind = tok.token_type == token.Token_Type.Plus ? ast.BinaryOpKind.Add : ast.BinaryOpKind.Sub
-        bin_op.right, err = parse_multiplication(parser)
-        if err != .None {
-            return bin_op, err
-        }
+        bin_op.right = parse_multiplication(parser) or_return
         multiplication = bin_op
     }
     return multiplication, .None
 }
 
-parse_multiplication :: proc(parser: ^Parser) -> (ast.Expr, Parser_Error) {
-    unary, err := parse_unary(parser) 
-    if err != .None {
-        return unary, err
-    }
+parse_multiplication :: proc(parser: ^Parser) -> (expr: ast.Expr, pe: Parser_Error) {
+    bit_shift := parse_bit_shift(parser) or_return
 
-    for !is_eof(parser) {
-        tok := peek(parser)
-        if tok.token_type != token.Token_Type.Star && tok.token_type != token.Token_Type.Slash {
-            break
+    for match_any(parser, token.Token_Type.Star, token.Token_Type.Slash, token.Token_Type.Mod) {
+        tok := previous(parser)
+        bin_op := new(ast.BinOp) 
+        bin_op.left = bit_shift
+        #partial switch tok.token_type {
+        case token.Token_Type.Star: bin_op.kind = .Mul
+        case token.Token_Type.Slash: bin_op.kind = .Div
+        case token.Token_Type.Mod: bin_op.kind = .Mod
+        case: // noop
         }
-        consume(parser) // discard * or /
+        bin_op.right = parse_multiplication(parser) or_return
+        bit_shift = bin_op
+    }
+    return bit_shift, .None
+}
+
+parse_bit_shift :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
+    power := parse_power(parser) or_return
+    for match_any(parser, token.Token_Type.LtLt, token.Token_Type.GtGt) {
+        bin_op := new(ast.BinOp) 
+        bin_op.left = power
+        bin_op.kind = previous(parser).token_type == token.Token_Type.LtLt ? .Shl : .Shr
+        bin_op.right = parse_power(parser) or_return
+        power = bin_op
+    }
+    return power, .None
+}
+
+parse_power :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
+    unary := parse_unary(parser) or_return
+    for match(parser, token.Token_Type.Caret) {
         bin_op := new(ast.BinOp) 
         bin_op.left = unary
-        bin_op.kind = tok.token_type == token.Token_Type.Star ? ast.BinaryOpKind.Mul : ast.BinaryOpKind.Div
-        bin_op.right, err = parse_multiplication(parser)
-        if err != .None {
-            return bin_op, err
-        }
+        bin_op.kind = .Exp
+        bin_op.right = parse_power(parser) or_return
         unary = bin_op
     }
     return unary, .None
 }
 
-parse_unary :: proc(parser: ^Parser) -> (ast.Expr, Parser_Error) {
+parse_unary :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
     kind: Maybe(ast.UnaryOpKind) = nil
     switch {
     case match(parser, token.Token_Type.Plus): 
@@ -109,10 +190,7 @@ parse_unary :: proc(parser: ^Parser) -> (ast.Expr, Parser_Error) {
     }
 
     if kind != nil {
-        unary, err := parse_unary(parser)
-        if err != .None  {
-            return unary, err 
-        }
+        unary := parse_unary(parser) or_return
 
         unary_node := new(ast.UnaryOp)
         unary_node.kind = kind.?
@@ -124,14 +202,9 @@ parse_unary :: proc(parser: ^Parser) -> (ast.Expr, Parser_Error) {
     return parse_primary(parser)
 }
 
-parse_primary :: proc(parser: ^Parser) -> (ast.Expr, Parser_Error) {
-    expr: ast.Expr
-    parser_err: Parser_Error = .None
+parse_primary :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
     if match(parser, token.Token_Type.LeftParen) {
-        expr, parser_err = parse_addition(parser)
-        if parser_err != .None {
-            return expr, parser_err
-        }
+        expr = parse_addition(parser) or_return
         if !match(parser, token.Token_Type.RightParen) {
             return expr, .UnclosedParen
         }

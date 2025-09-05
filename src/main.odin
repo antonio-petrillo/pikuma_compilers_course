@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:mem"
 import "core:mem/virtual"
 import "core:os"
+import "core:terminal/ansi"
 
 import "pinky:ast"
 import "pinky:interpreter"
@@ -116,14 +117,18 @@ main :: proc() {
             str := ast.ast_to_string_summary(node)
             defer delete(str)
             result, err := interpreter.interpret(node, &arena)
-            if err != interpreter.Interpreter_Error.None {
+            if err != interpreter.Runtime_Error.None {
                 fmt.printf("Interpreter Error: %s\n", interpreter.interpreter_error_to_string(err))
                 continue
             }
 
-            result_str := ast.ast_to_string_summary(result)
+            result_str := interpreter.result_to_string(result)
             defer delete(result_str)
-            fmt.printf("node[%d] expr<%s> := %s\n", index, str, result_str)
+            fmt.printf("node[%d] => " + ansi.CSI + ansi.FG_GREEN + ansi.SGR +
+                       " eval(%s) " + ansi.CSI + ansi.FG_WHITE + ansi.SGR + " := " +
+                       ansi.CSI + ansi.FG_GREEN + ansi.SGR +
+                       " %s\n" + ansi.CSI + ansi.FG_WHITE + ansi.SGR,
+                       index, str, result_str)
         }
     }
 

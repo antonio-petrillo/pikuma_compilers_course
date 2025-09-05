@@ -15,6 +15,20 @@ BinaryOpKind :: enum {
     Sub,
     Mul,
     Div,
+    Mod,
+    Exp,
+
+    Eq,
+    Gt,
+    Ge,
+    Lt,
+    Le,
+
+    Shl,
+    Shr,
+
+    And,
+    Or,
 }
 
 binary_op_kind_to_string :: proc(kind: BinaryOpKind) -> (s: string) {
@@ -23,6 +37,17 @@ binary_op_kind_to_string :: proc(kind: BinaryOpKind) -> (s: string) {
     case .Sub: s = "-"
     case .Mul: s = "*"
     case .Div: s = "/"
+    case .Mod: s = "%"
+    case .Exp: s = "^"
+    case .Eq: s = "=="
+    case .Gt: s = ">"
+    case .Ge: s = ">="
+    case .Lt: s = "<"
+    case .Le: s = "<="
+    case .Shl: s = "<<"
+    case .Shr: s = ">>"
+    case .And: s = "and"
+    case .Or: s = "or"
     }
     return
 }
