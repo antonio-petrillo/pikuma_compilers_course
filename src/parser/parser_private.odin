@@ -63,35 +63,35 @@ is_eof :: proc(parser: ^Parser) -> bool {
 }
 
 parse_expr :: proc(parser: ^Parser) -> (ast.Expr, Parser_Error) {
-    return parse_and(parser)
-}
-
-parse_and :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
-    or := parse_or(parser) or_return
-
-    for match(parser, token.Token_Type.And) {
-        bin_op := new(ast.BinOp)
-        bin_op.left = or
-        bin_op.kind = .And
-        bin_op.right = parse_and(parser) or_return
-        or = bin_op
-    }
-
-    return or, .None
+    return parse_or(parser)
 }
 
 parse_or :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
-    comparison := parse_equality(parser) or_return
+    and := parse_and(parser) or_return
 
     for match(parser, token.Token_Type.Or) {
         bin_op := new(ast.BinOp)
-        bin_op.left = comparison
+        bin_op.left = and
         bin_op.kind = .Or
-        bin_op.right = parse_equality(parser) or_return
-        comparison = bin_op
+        bin_op.right = parse_and(parser) or_return
+        and = bin_op
     }
 
-    return comparison, .None
+    return and, .None
+}
+
+parse_and :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
+    equality := parse_equality(parser) or_return
+
+    for match(parser, token.Token_Type.And) {
+        bin_op := new(ast.BinOp)
+        bin_op.left = equality
+        bin_op.kind = .And
+        bin_op.right = parse_equality(parser) or_return
+        equality = bin_op
+    }
+
+    return equality, .None
 }
 
 parse_equality :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
@@ -180,7 +180,6 @@ parse_bit_shift :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) 
     }
     return unary, .None
 }
-
 
 parse_unary :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
     kind: Maybe(ast.UnaryOpKind) = nil
