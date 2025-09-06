@@ -170,28 +170,17 @@ parse_multiplication :: proc(parser: ^Parser) -> (expr: ast.Expr, pe: Parser_Err
 }
 
 parse_bit_shift :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
-    power := parse_power(parser) or_return
+    unary := parse_unary(parser) or_return
     for match_any(parser, token.Token_Type.LtLt, token.Token_Type.GtGt) {
         bin_op := new(ast.BinOp) 
-        bin_op.left = power
-        bin_op.kind = previous(parser).token_type == token.Token_Type.LtLt ? .Shl : .Shr
-        bin_op.right = parse_power(parser) or_return
-        power = bin_op
-    }
-    return power, .None
-}
-
-parse_power :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
-    unary := parse_unary(parser) or_return
-    for match(parser, token.Token_Type.Caret) {
-        bin_op := new(ast.BinOp) 
         bin_op.left = unary
-        bin_op.kind = .Exp
-        bin_op.right = parse_power(parser) or_return
+        bin_op.kind = previous(parser).token_type == token.Token_Type.LtLt ? .Shl : .Shr
+        bin_op.right = parse_unary(parser) or_return
         unary = bin_op
     }
     return unary, .None
 }
+
 
 parse_unary :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
     kind: Maybe(ast.UnaryOpKind) = nil
@@ -214,7 +203,19 @@ parse_unary :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
         return unary_node, .None
     }
 
-    return parse_primary(parser)
+    return parse_power(parser)
+}
+
+parse_power :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
+    primary := parse_primary(parser) or_return
+    for match(parser, token.Token_Type.Caret) {
+        bin_op := new(ast.BinOp) 
+        bin_op.left = primary
+        bin_op.kind = .Exp
+        bin_op.right = parse_power(parser) or_return
+        primary = bin_op
+    }
+    return primary, .None
 }
 
 parse_primary :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
