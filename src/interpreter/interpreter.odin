@@ -1,5 +1,6 @@
 package interpreter
 
+import "core:fmt"
 import "core:math"
 import "core:mem/virtual"
 import "core:strings"
@@ -17,6 +18,7 @@ Runtime_Error :: enum {
     BitShiftWorksOnlyOnInteger,
     BitShiftWorksMustBePositive,
     LogicConnectorOnlyOnBools,
+    ExpectedBoolInCondition,
 }
 
 Bool :: bool
@@ -47,7 +49,6 @@ result_to_string :: proc(ir: Interpreter_Result) -> string {
     return strings.to_string(sb)
 }
 
-
 interpreter_error_to_string :: proc(ie: Runtime_Error) -> (s: string) {
     switch ie {
     case .None: s = "None"
@@ -60,20 +61,26 @@ interpreter_error_to_string :: proc(ie: Runtime_Error) -> (s: string) {
     case .BitShiftWorksOnlyOnInteger: s = "BitShifts '>>' and '<<' can only be applied to integers"
     case .BitShiftWorksMustBePositive: s = "Right hand side of '>>' and '<<' cannot be negative"
     case .LogicConnectorOnlyOnBools: s = "Logic connectors 'and' and 'or' can be used only 'bool' types"
+    case .ExpectedBoolInCondition: s = "Expected Bool in condition"
     }
     return
 }
 
-@(private)
-interpret_expr :: proc(expr_node: ast.Expr) -> (result: ast.Expr, err: Runtime_Error) {
+interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err: Runtime_Error) {
     switch expr in expr_node {
-    case ast.Integer, ast.Float, ast.String, ast.Bool:
-        result = expr
+    case ast.Integer:
+        result = Integer(expr)
+    case ast.Float:
+        result = Float(expr)
+    case ast.String:
+        result = String(expr)
+    case ast.Bool:
+        result = Bool(expr)
     case ^ast.UnaryOp:
         result = interpret_expr(expr.operand) or_return
         switch expr.kind {
         case ast.UnaryOpKind.Not: 
-            bool_res, ok := result.(ast.Bool)
+            bool_res, ok := result.(Bool)
             if !ok do return result, .UnaryOpTypeMismatch
             result = ast.Bool(!bool_res)
         case ast.UnaryOpKind.Pos:
@@ -104,214 +111,214 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: ast.Expr, err: Runtime_E
         case ast.BinaryOpKind.Shl, ast.BinaryOpKind.Shr:
             #partial switch left_operand in left {
             case ast.Integer:
-                right_operand, ok := right.(ast.Integer)
-                if !ok do return expr, .BinaryOpTypeMismatch 
-                if right_operand < 0 do return expr, .BitShiftWorksMustBePositive
+                right_operand, ok := right.(Integer)
+                if !ok do return result, .BinaryOpTypeMismatch 
+                if right_operand < 0 do return result, .BitShiftWorksMustBePositive
                 result = expr.kind == ast.BinaryOpKind.Shl ? left_operand << u64(right_operand) : left_operand >> u64(right_operand)
                 case:
-                return expr, .BitShiftWorksOnlyOnInteger
+                return result, .BitShiftWorksOnlyOnInteger
         }
         case ast.BinaryOpKind.And:
             #partial switch left_operand in left {
             case ast.Bool:
                 if left_operand {
-                    right_operand, ok := right.(ast.Bool)
-                    if !ok do return expr, .BinaryOpTypeMismatch 
+                    right_operand, ok := right.(Bool)
+                    if !ok do return result, .BinaryOpTypeMismatch 
                     result = right_operand
                 } else do result = false
                 case:
-                return expr, .LogicConnectorOnlyOnBools
+                return result, .LogicConnectorOnlyOnBools
             }
         case ast.BinaryOpKind.Or:
             #partial switch left_operand in left {
             case ast.Bool:
                 if left_operand do result = true
                 else {
-                    right_operand, ok := right.(ast.Bool)
-                    if !ok do return expr, .BinaryOpTypeMismatch 
+                    right_operand, ok := right.(Bool)
+                    if !ok do return result, .BinaryOpTypeMismatch 
                     result = right_operand
                 }
                 case:
-                return expr, .LogicConnectorOnlyOnBools
+                return result, .LogicConnectorOnlyOnBools
             }
         case ast.BinaryOpKind.Neq:
             #partial switch left_operand in left {
             case ast.Integer:
-                right_operand, ok := right.(ast.Integer)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Integer)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand != right_operand
             case ast.Float:
-                right_operand, ok := right.(ast.Float)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Float)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand != right_operand
             case ast.Bool:
-                right_operand, ok := right.(ast.Bool)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Bool)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand != right_operand
             case ast.String:
-                right_operand, ok := right.(ast.String)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(String)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand != right_operand
             }
         case ast.BinaryOpKind.Eq:
             #partial switch left_operand in left {
             case ast.Integer:
-                right_operand, ok := right.(ast.Integer)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Integer)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand == right_operand
             case ast.Float:
-                right_operand, ok := right.(ast.Float)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Float)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand == right_operand
             case ast.Bool:
-                right_operand, ok := right.(ast.Bool)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Bool)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand == right_operand
             case ast.String:
-                right_operand, ok := right.(ast.String)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(String)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand == right_operand
             }
         case ast.BinaryOpKind.Lt:
             #partial switch left_operand in left {
             case ast.Integer:
-                right_operand, ok := right.(ast.Integer)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Integer)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand < right_operand
             case ast.Float:
-                right_operand, ok := right.(ast.Float)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Float)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand < right_operand
             case ast.Bool:
-                return expr, .BoolAreNotComparable
+                return result, .BoolAreNotComparable
             case ast.String:
-                right_operand, ok := right.(ast.String)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(String)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand < right_operand
             }
         case ast.BinaryOpKind.Le:
             #partial switch left_operand in left {
             case ast.Integer:
-                right_operand, ok := right.(ast.Integer)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Integer)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand <= right_operand
             case ast.Float:
-                right_operand, ok := right.(ast.Float)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Float)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand <= right_operand
             case ast.Bool:
-                return expr, .BoolAreNotComparable
+                return result, .BoolAreNotComparable
             case ast.String:
-                right_operand, ok := right.(ast.String)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(String)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand <= right_operand
             }
         case ast.BinaryOpKind.Gt:
             #partial switch left_operand in left {
             case ast.Integer:
-                right_operand, ok := right.(ast.Integer)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Integer)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand > right_operand
             case ast.Float:
-                right_operand, ok := right.(ast.Float)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Float)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand > right_operand
             case ast.Bool:
-                return expr, .BoolAreNotComparable
+                return result, .BoolAreNotComparable
             case ast.String:
-                right_operand, ok := right.(ast.String)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(String)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand > right_operand
             }
         case ast.BinaryOpKind.Ge:
             #partial switch left_operand in left {
             case ast.Integer:
-                right_operand, ok := right.(ast.Integer)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Integer)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand >= right_operand
             case ast.Float:
-                right_operand, ok := right.(ast.Float)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Float)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand >= right_operand
             case ast.Bool:
-                return expr, .BoolAreNotComparable
+                return result, .BoolAreNotComparable
             case ast.String:
-                right_operand, ok := right.(ast.String)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(String)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand >= right_operand
             }
         case ast.BinaryOpKind.Add:
             #partial switch left_operand in left {
             case ast.Integer:
-                right_operand, ok := right.(ast.Integer)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Integer)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand + right_operand
             case ast.Float:
-                right_operand, ok := right.(ast.Float)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Float)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand + right_operand
             case ast.String:
-                right_operand, ok := right.(ast.String)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(String)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = strings.concatenate({left_operand, right_operand})
             case:
-                return expr, .BinaryOpUnapplicableToType
+                return result, .BinaryOpUnapplicableToType
             }
         case ast.BinaryOpKind.Sub:
             #partial switch left_operand in left {
             case ast.Integer:
-                right_operand, ok := right.(ast.Integer)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Integer)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand - right_operand
             case ast.Float:
-                right_operand, ok := right.(ast.Float)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Float)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand - right_operand
             case:
-                return expr, .BinaryOpUnapplicableToType
+                return result, .BinaryOpUnapplicableToType
             }
         case ast.BinaryOpKind.Mul:
             #partial switch left_operand in left {
             case ast.Integer:
-                right_operand, ok := right.(ast.Integer)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Integer)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand * right_operand
             case ast.Float:
-                right_operand, ok := right.(ast.Float)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Float)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand * right_operand
             case:
-                return expr, .BinaryOpUnapplicableToType
+                return result, .BinaryOpUnapplicableToType
             }
         case ast.BinaryOpKind.Div:
             #partial switch left_operand in left {
             case ast.Integer:
-                right_operand, ok := right.(ast.Integer)
-                if !ok do return expr, .BinaryOpTypeMismatch 
-                if right_operand == 0 do return expr, .DivisionByZero
+                right_operand, ok := right.(Integer)
+                if !ok do return result, .BinaryOpTypeMismatch 
+                if right_operand == 0 do return result, .DivisionByZero
                 result = left_operand / right_operand
             case ast.Float:
-                right_operand, ok := right.(ast.Float)
-                if !ok do return expr, .BinaryOpTypeMismatch 
-                if right_operand == 0 do return expr, .DivisionByZero
+                right_operand, ok := right.(Float)
+                if !ok do return result, .BinaryOpTypeMismatch 
+                if right_operand == 0 do return result, .DivisionByZero
                 result = left_operand / right_operand
             case:
-                return expr, .BinaryOpUnapplicableToType
+                return result, .BinaryOpUnapplicableToType
             }
         case ast.BinaryOpKind.Mod:
             #partial switch left_operand in left {
             case ast.Integer:
-                right_operand, ok := right.(ast.Integer)
-                if !ok do return expr, .BinaryOpTypeMismatch 
-                if right_operand == 0 do return expr, .DivisionByZero
+                right_operand, ok := right.(Integer)
+                if !ok do return result, .BinaryOpTypeMismatch 
+                if right_operand == 0 do return result, .DivisionByZero
                 result = left_operand % right_operand
            case ast.Float:
-                right_operand, ok := right.(ast.Float)
-                if !ok do return expr, .BinaryOpTypeMismatch 
-                if right_operand == 0 do return expr, .DivisionByZero
+                right_operand, ok := right.(Float)
+                if !ok do return result, .BinaryOpTypeMismatch 
+                if right_operand == 0 do return result, .DivisionByZero
                 result = math.mod_f64(left_operand, right_operand)
            case:
-                return expr, .BinaryOpUnapplicableToType
+                return result, .BinaryOpUnapplicableToType
             }
         case ast.BinaryOpKind.Exp:
             #partial switch left_operand in left {
@@ -330,23 +337,52 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: ast.Expr, err: Runtime_E
                     }
                     return acc * a
                 }
-                right_operand, ok := right.(ast.Integer)
-                if !ok do return expr, .BinaryOpTypeMismatch 
-                if left_operand == right_operand && left_operand == 0 do return expr, .DivisionByZero
-                if right_operand < 0 do return expr, .IntegerExpOnlyPositiveExponent
+                right_operand, ok := right.(Integer)
+                if !ok do return result, .BinaryOpTypeMismatch 
+                if left_operand == right_operand && left_operand == 0 do return result, .DivisionByZero
+                if right_operand < 0 do return result, .IntegerExpOnlyPositiveExponent
                 result = fast_pow(left_operand, right_operand)
            case ast.Float:
-                right_operand, ok := right.(ast.Float)
-                if !ok do return expr, .BinaryOpTypeMismatch 
+                right_operand, ok := right.(Float)
+                if !ok do return result, .BinaryOpTypeMismatch 
                 result = math.pow_f64(left_operand, right_operand)
            case:
-                return expr, .BinaryOpUnapplicableToType
+                return result, .BinaryOpUnapplicableToType
             }
         }
     case ^ast.Grouping:
         return interpret_expr(expr.expr)
     }
     return result, .None
+}
+
+interpret_stmt :: proc(node: ast.Stmt) -> (err: Runtime_Error) {
+    switch stmt in node {
+    case ^ast.Print:
+        expr := interpret_expr(stmt.expr) or_return
+        str := result_to_string(expr)
+        fmt.printf("%s", str)
+    case ^ast.Println:
+        expr := interpret_expr(stmt.expr) or_return
+        str := result_to_string(expr)
+        fmt.printf("%s\n", str)
+    case ^ast.WrapExpr:
+        _ = interpret_expr(stmt.expr) or_return
+    case ^ast.If:
+        cond_expr := interpret_expr(stmt.cond) or_return
+        cond, ok := cond_expr.(Bool)
+        if !ok do return .ExpectedBoolInCondition
+        if cond {
+            for then_stmt in stmt.then_branch {
+                interpret_stmt(then_stmt) or_return
+            } 
+        } else {
+            for then_stmt in stmt.else_branch {
+                interpret_stmt(then_stmt) or_return
+            } 
+        }
+    }
+    return .None
 }
 
 interpret :: proc(node: ast.AstNode, interpret_arena: ^virtual.Arena) -> (result: Interpreter_Result, err: Runtime_Error) {
@@ -356,7 +392,7 @@ interpret :: proc(node: ast.AstNode, interpret_arena: ^virtual.Arena) -> (result
     switch node_kind in node {
     case ast.Expr:
         expr, err_expr := interpret_expr(node_kind)
-        if err != .None {
+        if err_expr != .None {
             return NULL, err_expr
         }
         #partial switch res in expr {
@@ -367,7 +403,11 @@ interpret :: proc(node: ast.AstNode, interpret_arena: ^virtual.Arena) -> (result
         case: result = NULL
         } 
     case ast.Stmt:
-        panic("Not implemented Yet!")
+        result = NULL
+        err_stmt := interpret_stmt(node_kind)
+        if err_stmt != .None {
+            return NULL, err_stmt
+        }
     }
     return result, .None
 }

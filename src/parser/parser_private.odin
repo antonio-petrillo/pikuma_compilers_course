@@ -1,6 +1,7 @@
 #+private
 package parser
 
+@require import "core:fmt"
 import "core:strconv"
 import "core:strings"
 
@@ -257,3 +258,78 @@ parse_primary :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
     }
 }
 
+
+parse_stmt :: proc(parser: ^Parser) -> (node: ast.Stmt, err: Parser_Error) {
+    if is_eof(parser) do return // allow for empty program
+
+    #partial switch peek(parser).token_type {
+    case token.Token_Type.Print, token.Token_Type.Println:
+        stmt := parse_print(parser) or_return
+        node = ast.Stmt(stmt)
+    case token.Token_Type.If:
+        stmt := parse_if(parser) or_return
+        node = ast.Stmt(stmt)
+    /* case token.Token_Type.While: */
+    /*     stmt := parse_while(parser) or_return */
+    /*     node = ast.While(stmt) */
+    /* case token.Token_Type.For: */
+    /*     stmt := parse_for(parser) or_return */
+    /*     node = ast.For(stmt) */
+    /* case token.Token_Type.Func: */
+    /*     stmt := parse_func(parser) or_return */
+    /*     node = ast.Func(stmt) */
+    case: 
+        wrap_expr := new(ast.WrapExpr)
+        wrap_expr.expr = parse_expr(parser) or_return
+        node = wrap_expr
+    }
+    return node, .None
+}
+
+parse_print :: proc(parser: ^Parser) -> (stmt: ast.Stmt, err: Parser_Error) {
+    if !match_any(parser, token.Token_Type.Print, token.Token_Type.Println) do panic("Called 'parse_print' on wrong token")
+
+    if previous(parser).token_type == token.Token_Type.Print {
+        print := new(ast.Print)
+        print.expr = parse_expr(parser) or_return
+        stmt = print
+    } else {
+        println := new(ast.Println)
+        println.expr = parse_expr(parser) or_return
+        stmt = println
+
+    }
+
+    return stmt, .None
+}
+
+parse_if :: proc(parser: ^Parser) -> (stmt: ast.Stmt, err: Parser_Error) {
+    if !match(parser, token.Token_Type.If) do panic("Called 'parse_if' on wrong token")
+    if_stmt := new(ast.If)
+    if_stmt.cond = parse_expr(parser) or_return
+
+    if !match(parser, token.Token_Type.Then) do return stmt, .MissingThenInIf
+
+    for !is_eof(parser) && !match_any(parser, token.Token_Type.Else, token.Token_Type.End) {
+        another_stmt := parse_stmt(parser) or_return 
+        append(&if_stmt.then_branch, another_stmt)
+    }
+
+    if is_eof(parser) && (previous(parser).token_type != token.Token_Type.Else && previous(parser).token_type != token.Token_Type.End) {
+        fmt.printfln("here")
+        return stmt, .MissingEndInIf
+    }
+
+    stmt = if_stmt 
+
+    if previous(parser).token_type == token.Token_Type.Else {
+        for !is_eof(parser) && !match(parser, token.Token_Type.End) {
+            another_stmt := parse_stmt(parser) or_return 
+            append(&if_stmt.else_branch, another_stmt)
+        }
+    }
+
+    if previous(parser).token_type != token.Token_Type.End do return stmt, .MissingEndInIf
+
+    return stmt, .None
+}

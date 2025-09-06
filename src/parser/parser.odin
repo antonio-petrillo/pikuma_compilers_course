@@ -11,6 +11,8 @@ Parser_Error :: enum {
     InvalidFloat,
     InvalidPrimaryExpression,
     UnclosedParen,
+    MissingThenInIf,
+    MissingEndInIf,
 }
 
 parser_error_to_string :: proc(pe: Parser_Error) -> (s: string) {
@@ -20,6 +22,8 @@ parser_error_to_string :: proc(pe: Parser_Error) -> (s: string) {
     case .InvalidFloat: s = "Can't parse Float lexeme"
     case .InvalidPrimaryExpression: s = "Can't parse primary expression"
     case .UnclosedParen: s = "Missing closing parenthesis ')'"
+    case .MissingThenInIf: s = "Missing 'then' after 'if <expr>'"
+    case .MissingEndInIf: s = "Missing 'end' after 'if <expr> then <stmt>*'"
     }
     return
 }
@@ -38,7 +42,7 @@ parse :: proc(tokens: []token.Token, parser_arena: ^virtual.Arena) -> ([dynamic]
     }
 
     loop: for !is_eof(parser) {
-        node, err := parse_expr(parser)
+        node, err := parse_stmt(parser)
         if err != .None {
             parser_error = err
             encountered_error = true

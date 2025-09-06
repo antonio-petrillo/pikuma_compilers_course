@@ -4,7 +4,6 @@ import "core:fmt"
 import "core:mem"
 import "core:mem/virtual"
 import "core:os"
-import "core:terminal/ansi"
 
 import "pinky:ast"
 import "pinky:interpreter"
@@ -76,9 +75,9 @@ main :: proc() {
     defer delete(tokens)
 
     {
-        fmt.print("#########################")
-        fmt.print("##### TOKENS LEXED: #####")
-        fmt.print("#########################")
+        fmt.print("#########################\n")
+        fmt.print("##### TOKENS LEXED: #####\n")
+        fmt.print("#########################\n")
         defer fmt.print("#########################\n#########################\n\n")
 
         for &tok, index in tokens {
@@ -101,9 +100,15 @@ main :: proc() {
         defer fmt.print("#########################\n#########################\n\n")
 
         for &node, index in nodes {
-            str := ast.ast_to_string(node)
+            str: string
+            switch node_ in node {
+            case ast.Expr: str = ast.expr_to_string(node_) 
+            case ast.Stmt: str = ast.stmt_to_string(node_) 
+            }
             defer delete(str)
-            fmt.printf("node[%d] := %s\n", index, str)
+            fmt.print("###########################\n")
+            fmt.printf("node[%d] :=\n%s\n", index, str)
+            fmt.print("###########################\n\n")
         }
     }
 
@@ -111,24 +116,20 @@ main :: proc() {
         fmt.print("###########################\n")
         fmt.print("#######  TREE WALK: #######\n")
         fmt.print("###########################\n")
-        defer fmt.print("#########################\n#########################\n\n")
+        defer fmt.print("\n#########################\n#########################\n\n")
 
-        for &node, index in nodes {
-            str := ast.ast_to_string_summary(node)
+        for &node in nodes {
+            str: string
+            switch node_ in node {
+            case ast.Expr: str = ast.expr_to_string_summary(node_) 
+            case ast.Stmt: str = ast.stmt_to_string_summary(node_) 
+            }
             defer delete(str)
-            result, err := interpreter.interpret(node, &arena)
+            _, err := interpreter.interpret(node, &arena)
             if err != interpreter.Runtime_Error.None {
                 fmt.printf("Interpreter Error: %s\n", interpreter.interpreter_error_to_string(err))
                 continue
             }
-
-            result_str := interpreter.result_to_string(result)
-            defer delete(result_str)
-            fmt.printf("node[%d] => " + ansi.CSI + ansi.FG_GREEN + ansi.SGR +
-                       " eval(%s) " + ansi.CSI + ansi.FG_WHITE + ansi.SGR + " := " +
-                       ansi.CSI + ansi.FG_GREEN + ansi.SGR +
-                       " %s\n" + ansi.CSI + ansi.FG_WHITE + ansi.SGR,
-                       index, str, result_str)
         }
     }
 
