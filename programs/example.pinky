@@ -8,19 +8,16 @@
 4 % 2
 124314314 % 17
 124314314 / 17
-(124314314 / 17) * 17 + 124314314 % 17 --- hmmm, wrong parsing here
 124314314 / 17 * 17 + 124314314 % 17 --- hmmm, wrong parsing here
 2^10
 1.414 ^ 2.0
-true
-false
-true == true
-false == true
-false == false
+--true == true
+--false == true
+--false == false
 2 > 2
 2 >= 2
 2 < 2
-2 == 2
+--2 == 2
 2 <= 2
 2.0 > 2.0
 2.0 >= 2.0
@@ -53,3 +50,7 @@ false or false
 
 true == ~false
 true == ~true
+true ~= ~true
+true ~= ~false
+
+2 ^ 3 ^ 2

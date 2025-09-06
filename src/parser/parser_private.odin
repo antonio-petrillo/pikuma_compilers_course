@@ -81,16 +81,34 @@ parse_and :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
 }
 
 parse_or :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
-    comparison := parse_comparison(parser) or_return
+    comparison := parse_equality(parser) or_return
 
     for match(parser, token.Token_Type.Or) {
         bin_op := new(ast.BinOp)
         bin_op.left = comparison
         bin_op.kind = .Or
-        bin_op.right = parse_or(parser) or_return
+        bin_op.right = parse_equality(parser) or_return
         comparison = bin_op
     }
 
+    return comparison, .None
+}
+
+parse_equality :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
+    comparison := parse_comparison(parser) or_return
+
+    // why did he add also '=' (.Eq)?
+    for match_any(parser, token.Token_Type.Eq, token.Token_Type.EqEq, token.Token_Type.Ne) {
+        tok := previous(parser) 
+        bin_op := new(ast.BinOp)
+        bin_op.left = comparison
+        bin_op.right = parse_comparison(parser) or_return
+        #partial switch tok.token_type {
+            case token.Token_Type.Eq, token.Token_Type.EqEq: bin_op.kind = ast.BinaryOpKind.Eq
+            case token.Token_Type.Ne: bin_op.kind = ast.BinaryOpKind.Neq
+        }
+        comparison = bin_op
+    }
     return comparison, .None
 }
 
@@ -98,8 +116,6 @@ parse_comparison :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error)
     addition := parse_addition(parser) or_return
 
     for match_any(parser,
-                  token.Token_Type.Eq, // why he also add this?
-                  token.Token_Type.EqEq,
                   token.Token_Type.Lt,
                   token.Token_Type.Gt,
                   token.Token_Type.Le,
@@ -108,14 +124,13 @@ parse_comparison :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error)
         bin_op := new(ast.BinOp)
         bin_op.left = addition
         #partial switch tok.token_type {
-            case token.Token_Type.Eq, token.Token_Type.EqEq: bin_op.kind = ast.BinaryOpKind.Eq
             case token.Token_Type.Lt: bin_op.kind = ast.BinaryOpKind.Lt
             case token.Token_Type.Le: bin_op.kind = ast.BinaryOpKind.Le
             case token.Token_Type.Gt: bin_op.kind = ast.BinaryOpKind.Gt
             case token.Token_Type.Ge: bin_op.kind = ast.BinaryOpKind.Ge
             case: // noop
         }
-        bin_op.right = parse_comparison(parser) or_return
+        bin_op.right = parse_addition(parser) or_return
         addition = bin_op
     }
 
@@ -148,7 +163,7 @@ parse_multiplication :: proc(parser: ^Parser) -> (expr: ast.Expr, pe: Parser_Err
         case token.Token_Type.Mod: bin_op.kind = .Mod
         case: // noop
         }
-        bin_op.right = parse_multiplication(parser) or_return
+        bin_op.right = parse_bit_shift(parser) or_return
         bit_shift = bin_op
     }
     return bit_shift, .None

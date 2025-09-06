@@ -78,6 +78,9 @@ compare_stmt :: proc(a, b: ast.Stmt) -> bool {
 }
 
 compare_ast_node :: proc(a, b: ast.AstNode) -> bool {
+    context.allocator = context.temp_allocator
+    defer free_all(context.temp_allocator)
+
     result := true
     switch kind in a {
     case ast.Expr:
@@ -93,20 +96,25 @@ compare_ast_node :: proc(a, b: ast.AstNode) -> bool {
     return result
 }
 
-compare_actual_and_expected :: proc(t: ^testing.T, actual: [dynamic]ast.AstNode, expected: []ast.AstNode) {
+compare_actual_and_expected :: proc(t: ^testing.T, called_from_prefix: string, actual: [dynamic]ast.AstNode, expected: []ast.AstNode) {
     msgs_arena: virtual.Arena
     msgs_arena_allocator := virtual.arena_allocator(&msgs_arena)
     defer virtual.arena_destroy(&msgs_arena)
 
     sb := strings.builder_make(allocator = msgs_arena_allocator)
     if len(actual) != len(expected) {
-        testing.fail_now(t, fmt.sbprintf(&sb, "Wrong number of Ast Node parsed: expected %d, got %d", len(expected), len(actual)))
+        testing.fail_now(t, fmt.sbprintf(&sb, "[%s] Wrong number of Ast Node parsed: expected %d, got %d", called_from_prefix, len(expected), len(actual)))
     }
+
 
     for node, index in actual {
         strings.builder_reset(&sb)
-        testing.expect(t, compare_ast_node(node, expected[index]),
-                       fmt.sbprintf(&sb, "Mismatch at Node %d", index + 1)) // 1 base index, my brain prefer that way
+
+        str := fmt.sbprintf(&sb,
+                            "[%s] Mismatch at Node %d",
+                            called_from_prefix,
+                            index + 1) // 1 base index, my brain prefer that way
+        testing.expect(t, compare_ast_node(node, expected[index]), str) 
     }
 }
 
@@ -123,11 +131,12 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
     using ast
 
     expected := []AstNode{
+        // -> 1
         ast.Expr(&BinOp{
             kind = .Add,
             left = &UnaryOp{
                 kind = .Negate,
-                operand = Integer(2),
+                operand = Integer(12),
             },
             right = &ast.BinOp{
                 kind = .Mul,
@@ -136,6 +145,7 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
             },
         }),
 
+        // -> 2
         ast.Expr(&Grouping{
             expr = &BinOp {
                 kind = .Add,
@@ -156,12 +166,27 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
                 },
             }
         }),
+
+        // -> 3
         Expr(&BinOp{
             kind = .Add,
             left = &BinOp{
                 kind = .Add,
                 left = &BinOp{
                     kind = .Add,
+                    left = Integer(2), right = Integer(2),},
+                right = Integer(2),
+            },
+            right = Integer(2),
+        }),
+
+        // -> 4
+        Expr(&BinOp{
+            kind = .Mul,
+            left = &BinOp{
+                kind = .Mul,
+                left = &BinOp{
+                    kind = .Mul,
                     left = Integer(2),
                     right = Integer(2),
                 },
@@ -169,19 +194,8 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
             },
             right = Integer(2),
         }),
-        Expr(&BinOp{
-            kind = .Mul,
-            left = Integer(2),
-            right = &BinOp{
-                kind = .Mul,
-                left = Integer(2),
-                right = &BinOp{
-                    kind = .Mul,
-                    left = Integer(2),
-                    right = Integer(2),
-                }
-            }
-        }),
+
+        // -> 5
         Expr(&BinOp{
             kind = .Add,
             left = &BinOp{
@@ -195,6 +209,8 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
             },
             right = Integer(1),
         }),
+
+        // -> 6
         Expr(&BinOp{
             kind = .Mul,
             left = &Grouping{
@@ -212,6 +228,8 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
                 }
             },
         }),
+
+        // -> 7
         Expr(&BinOp{
             kind = .Sub,
             left = &BinOp{
@@ -220,15 +238,17 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
                 right = Integer(2),
             },
             right = &BinOp{
-                kind = .Mul,
-                left = Integer(3),
-                right = &BinOp{
-                    kind = .Div,
-                    left = Integer(4),
-                    right = Integer(5),
-                }
+                kind = .Div,
+                left = &BinOp{
+                    kind = .Mul,
+                    left = Integer(3),
+                    right = Integer(4),
+                },
+                right = Integer(5),
             },
         }),
+
+        // -> 8
         Expr(&BinOp{
             kind = .Sub,
             left = &BinOp{
@@ -237,16 +257,20 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
                 right = Float(2.1),
             },
             right = &BinOp{
-                kind = .Mul,
-                left = Float(3.2),
-                right = &BinOp{
-                    kind = .Div,
-                    left = Float(4.3),
-                    right = Float(5.4),
-                }
+                kind = .Div,
+                left = &BinOp{
+                    kind = .Mul,
+                    left = Float(3.2),
+                    right = Float(4.3),
+                },
+                right = Float(5.4),
             },
         }),
+
+        // -> 9
         Expr(String("asdf")),
+
+        // -> 10
         Expr(&BinOp{
             kind = .Add,
             left = &BinOp{
@@ -256,8 +280,19 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
             },
             right = String("World!"),
         }),
+
+        // -> 11
+        Expr(&BinOp{
+            kind = .Exp,
+            left = Integer(2),
+            right = &BinOp{
+                kind = .Exp,
+                left = Integer(3),
+                right = Integer(2),
+            },
+        }),
     }
         
     nodes := setup_parser(t, only_math_expressions, &parser_arena)
-    compare_actual_and_expected(t, nodes, expected)
+    compare_actual_and_expected(t, "test math expression", nodes, expected)
 }

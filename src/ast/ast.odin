@@ -18,11 +18,13 @@ BinaryOpKind :: enum {
     Mod,
     Exp,
 
-    Eq,
     Gt,
     Ge,
     Lt,
     Le,
+
+    Eq,
+    Neq,
 
     Shl,
     Shr,
@@ -40,6 +42,7 @@ binary_op_kind_to_string :: proc(kind: BinaryOpKind) -> (s: string) {
     case .Mod: s = "%"
     case .Exp: s = "^"
     case .Eq: s = "=="
+    case .Neq: s = "~="
     case .Gt: s = ">"
     case .Ge: s = ">="
     case .Lt: s = "<"

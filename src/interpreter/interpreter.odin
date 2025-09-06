@@ -134,6 +134,25 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: ast.Expr, err: Runtime_E
                 case:
                 return expr, .LogicConnectorOnlyOnBools
             }
+        case ast.BinaryOpKind.Neq:
+            #partial switch left_operand in left {
+            case ast.Integer:
+                right_operand, ok := right.(ast.Integer)
+                if !ok do return expr, .BinaryOpTypeMismatch 
+                result = left_operand != right_operand
+            case ast.Float:
+                right_operand, ok := right.(ast.Float)
+                if !ok do return expr, .BinaryOpTypeMismatch 
+                result = left_operand != right_operand
+            case ast.Bool:
+                right_operand, ok := right.(ast.Bool)
+                if !ok do return expr, .BinaryOpTypeMismatch 
+                result = left_operand != right_operand
+            case ast.String:
+                right_operand, ok := right.(ast.String)
+                if !ok do return expr, .BinaryOpTypeMismatch 
+                result = left_operand != right_operand
+            }
         case ast.BinaryOpKind.Eq:
             #partial switch left_operand in left {
             case ast.Integer:
