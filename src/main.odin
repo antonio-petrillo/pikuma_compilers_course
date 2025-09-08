@@ -100,11 +100,7 @@ main :: proc() {
         defer fmt.print("#########################\n#########################\n\n")
 
         for &node, index in nodes {
-            str: string
-            switch node_ in node {
-            case ast.Expr: str = ast.expr_to_string(node_) 
-            case ast.Stmt: str = ast.stmt_to_string(node_) 
-            }
+            str := ast.stmt_to_string(node) 
             defer delete(str)
             fmt.print("###########################\n")
             fmt.printf("node[%d] :=\n%s\n", index, str)
@@ -119,11 +115,7 @@ main :: proc() {
         defer fmt.print("\n#########################\n#########################\n\n")
 
         for &node in nodes {
-            str: string
-            switch node_ in node {
-            case ast.Expr: str = ast.expr_to_string_summary(node_) 
-            case ast.Stmt: str = ast.stmt_to_string_summary(node_) 
-            }
+            str := ast.stmt_to_string_summary(node)
             defer delete(str)
             _, err := interpreter.interpret(node, &arena)
             if err != interpreter.Runtime_Error.None {

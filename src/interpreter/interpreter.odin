@@ -356,7 +356,8 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
     return result, .None
 }
 
-interpret_stmt :: proc(node: ast.Stmt) -> (err: Runtime_Error) {
+interpret_stmt :: proc(node: ast.Stmt) -> (result: Interpreter_Result, err: Runtime_Error) {
+    result = NULL
     switch stmt in node {
     case ^ast.Print:
         expr := interpret_expr(stmt.expr) or_return
@@ -367,47 +368,27 @@ interpret_stmt :: proc(node: ast.Stmt) -> (err: Runtime_Error) {
         str := result_to_string(expr)
         fmt.printf("%s\n", str)
     case ^ast.WrapExpr:
-        _ = interpret_expr(stmt.expr) or_return
+        result = interpret_expr(stmt.expr) or_return
     case ^ast.If:
         cond_expr := interpret_expr(stmt.cond) or_return
         cond, ok := cond_expr.(Bool)
-        if !ok do return .ExpectedBoolInCondition
+        if !ok do return NULL, .ExpectedBoolInCondition
         if cond {
             for then_stmt in stmt.then_branch {
-                interpret_stmt(then_stmt) or_return
+                result = interpret_stmt(then_stmt) or_return
             } 
         } else {
             for then_stmt in stmt.else_branch {
-                interpret_stmt(then_stmt) or_return
+                result = interpret_stmt(then_stmt) or_return
             } 
         }
     }
-    return .None
+    return result, .None
 }
 
-interpret :: proc(node: ast.AstNode, interpret_arena: ^virtual.Arena) -> (result: Interpreter_Result, err: Runtime_Error) {
+interpret :: proc(node: ast.Stmt, interpret_arena: ^virtual.Arena) -> (result: Interpreter_Result, err: Runtime_Error) {
     arena_allocator := virtual.arena_allocator(interpret_arena)
     context.allocator = arena_allocator
 
-    switch node_kind in node {
-    case ast.Expr:
-        expr, err_expr := interpret_expr(node_kind)
-        if err_expr != .None {
-            return NULL, err_expr
-        }
-        #partial switch res in expr {
-        case Integer: result = Integer(res)
-        case Float: result = Float(res)
-        case String: result = String(res)
-        case Bool: result = Bool(res)
-        case: result = NULL
-        } 
-    case ast.Stmt:
-        result = NULL
-        err_stmt := interpret_stmt(node_kind)
-        if err_stmt != .None {
-            return NULL, err_stmt
-        }
-    }
-    return result, .None
+    return interpret_stmt(node)
 }

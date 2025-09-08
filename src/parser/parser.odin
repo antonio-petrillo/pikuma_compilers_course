@@ -28,11 +28,11 @@ parser_error_to_string :: proc(pe: Parser_Error) -> (s: string) {
     return
 }
 
-parse :: proc(tokens: []token.Token, parser_arena: ^virtual.Arena) -> ([dynamic]ast.AstNode, Parser_Error) {
+parse :: proc(tokens: []token.Token, parser_arena: ^virtual.Arena) -> ([dynamic]ast.Stmt, Parser_Error) {
     arena_allocator := virtual.arena_allocator(parser_arena)
     context.allocator = arena_allocator
 
-    ast_nodes := make([dynamic]ast.AstNode)
+    ast_nodes := make([dynamic]ast.Stmt)
     parser_error: Parser_Error = .None
     encountered_error := false
 

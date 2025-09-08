@@ -9,7 +9,7 @@ import "pinky:ast"
 import "pinky:lexer"
 import "pinky:parser"
 
-setup_parser_expr :: proc(t: ^testing.T, source: []u8, arena: ^virtual.Arena) -> [dynamic]ast.AstNode {
+setup_parser_expr :: proc(t: ^testing.T, source: []u8, arena: ^virtual.Arena) -> [dynamic]ast.Stmt {
     tokens, lexer_err := lexer.tokenize(source, arena) 
     assert(lexer_err == lexer.Tokenize_Error.None)
 
@@ -35,169 +35,199 @@ test_math_expression_are_parsed_correctly :: proc(t: ^testing.T) {
 
     using ast
 
-    expected := []AstNode{
+    expected := []Stmt{
         // -> 1
-        ast.Expr(&BinOp{
-            kind = .Add,
-            left = &UnaryOp{
-                kind = .Negate,
-                operand = Integer(12),
-            },
-            right = &ast.BinOp{
-                kind = .Mul,
-                left = Integer(42),
-                right = Integer(2),
-            },
-        }),
+            &WrapExpr{ expr = Expr(&BinOp{
+                kind = .Add,
+                left = &UnaryOp{
+                    kind = .Negate,
+                    operand = Integer(12),
+                },
+                right = &ast.BinOp{
+                    kind = .Mul,
+                    left = Integer(42),
+                    right = Integer(2),
+                },
+            })},
 
         // -> 2
-        ast.Expr(&Grouping{
-            expr = &BinOp {
-                kind = .Add,
-                left = &BinOp{
+            &WrapExpr{ expr = Expr(&Grouping{
+                expr = &BinOp {
                     kind = .Add,
-                    left = &UnaryOp{
-                        kind = .Negate,
-                        operand = Integer(1),
+                    left = &BinOp{
+                        kind = .Add,
+                        left = &UnaryOp{
+                            kind = .Negate,
+                            operand = Integer(1),
+                        },
+                        right = &UnaryOp{
+                            kind = .Pos,
+                            operand = Integer(1),
+                        },
                     },
                     right = &UnaryOp{
-                        kind = .Pos,
+                        kind = .Not,
                         operand = Integer(1),
                     },
-                },
-                right = &UnaryOp{
-                    kind = .Not,
-                    operand = Integer(1),
-                },
-            }
-        }),
+                }
+            })},
 
         // -> 3
-        Expr(&BinOp{
-            kind = .Add,
-            left = &BinOp{
+            &WrapExpr{expr = Expr(&BinOp{
                 kind = .Add,
                 left = &BinOp{
                     kind = .Add,
-                    left = Integer(2), right = Integer(2),},
+                    left = &BinOp{
+                        kind = .Add,
+                        left = Integer(2), right = Integer(2),},
+                    right = Integer(2),
+                },
                 right = Integer(2),
-            },
-            right = Integer(2),
-        }),
+            })},
 
         // -> 4
-        Expr(&BinOp{
-            kind = .Mul,
-            left = &BinOp{
+            &WrapExpr{ expr = Expr(&BinOp{
                 kind = .Mul,
                 left = &BinOp{
                     kind = .Mul,
-                    left = Integer(2),
+                    left = &BinOp{
+                        kind = .Mul,
+                        left = Integer(2),
+                        right = Integer(2),
+                    },
                     right = Integer(2),
                 },
                 right = Integer(2),
-            },
-            right = Integer(2),
-        }),
+            })},
 
         // -> 5
-        Expr(&BinOp{
-            kind = .Add,
-            left = &BinOp{
+            &WrapExpr{ expr = Expr(&BinOp{
                 kind = .Add,
-                left = Integer(1),
-                right = &BinOp{
-                    kind = .Mul,
-                    left = Integer(2),
-                    right = Integer(2),
-                }
-            },
-            right = Integer(1),
-        }),
+                left = &BinOp{
+                    kind = .Add,
+                    left = Integer(1),
+                    right = &BinOp{
+                        kind = .Mul,
+                        left = Integer(2),
+                        right = Integer(2),
+                    }
+                },
+                right = Integer(1),
+            })},
 
         // -> 6
-        Expr(&BinOp{
-            kind = .Mul,
-            left = &Grouping{
-                expr = &BinOp{
+            &WrapExpr{ expr = Expr(&BinOp{
+                kind = .Mul,
+                left = &Grouping{
+                    expr = &BinOp{
+                        kind = .Add,
+                        left = Integer(1),
+                        right = Integer(2),
+                    }
+                },
+                right = &Grouping{
+                    expr = &BinOp{
+                        kind = .Add,
+                        left = Integer(2),
+                        right = Integer(1),
+                    }
+                },
+            })},
+
+        // -> 7
+            &WrapExpr{expr = Expr(&BinOp{
+                kind = .Sub,
+                left = &BinOp{
                     kind = .Add,
                     left = Integer(1),
                     right = Integer(2),
-                }
-            },
-            right = &Grouping{
-                expr = &BinOp{
-                    kind = .Add,
-                    left = Integer(2),
-                    right = Integer(1),
-                }
-            },
-        }),
-
-        // -> 7
-        Expr(&BinOp{
-            kind = .Sub,
-            left = &BinOp{
-                kind = .Add,
-                left = Integer(1),
-                right = Integer(2),
-            },
-            right = &BinOp{
-                kind = .Div,
-                left = &BinOp{
-                    kind = .Mul,
-                    left = Integer(3),
-                    right = Integer(4),
                 },
-                right = Integer(5),
-            },
-        }),
+                right = &BinOp{
+                    kind = .Div,
+                    left = &BinOp{
+                        kind = .Mul,
+                        left = Integer(3),
+                        right = Integer(4),
+                    },
+                    right = Integer(5),
+                },
+            })},
 
         // -> 8
-        Expr(&BinOp{
-            kind = .Sub,
-            left = &BinOp{
-                kind = .Add,
-                left = Float(1.0),
-                right = Float(2.1),
-            },
-            right = &BinOp{
-                kind = .Div,
+            &WrapExpr{expr = Expr(&BinOp{
+                kind = .Sub,
                 left = &BinOp{
-                    kind = .Mul,
-                    left = Float(3.2),
-                    right = Float(4.3),
+                    kind = .Add,
+                    left = Float(1.0),
+                    right = Float(2.1),
                 },
-                right = Float(5.4),
-            },
-        }),
+                right = &BinOp{
+                    kind = .Div,
+                    left = &BinOp{
+                        kind = .Mul,
+                        left = Float(3.2),
+                        right = Float(4.3),
+                    },
+                    right = Float(5.4),
+                },
+            })},
 
         // -> 9
-        Expr(String("asdf")),
+            &WrapExpr{ expr = Expr(String("asdf"))},
 
         // -> 10
-        Expr(&BinOp{
-            kind = .Add,
-            left = &BinOp{
+            &WrapExpr{ expr = Expr(&BinOp{
                 kind = .Add,
-                left = String("Hello"),
-                right = String(" ,")
-            },
-            right = String("World!"),
-        }),
+                left = &BinOp{
+                    kind = .Add,
+                    left = String("Hello"),
+                    right = String(" ,")
+                },
+                right = String("World!"),
+            })},
 
         // -> 11
-        Expr(&BinOp{
-            kind = .Exp,
-            left = Integer(2),
-            right = &BinOp{
+            &WrapExpr{ expr = Expr(&BinOp{
                 kind = .Exp,
-                left = Integer(3),
-                right = Integer(2),
-            },
-        }),
+                left = Integer(2),
+                right = &BinOp{
+                    kind = .Exp,
+                    left = Integer(3),
+                    right = Integer(2),
+                },
+            })},
     }
         
     nodes := setup_parser_expr(t, only_math_expressions, &parser_arena)
-    compare_actual_and_expected(t, "test math expression", nodes, expected)
+    expr_compare_actual_and_expected(t, "test math expression", nodes, expected)
+}
+
+expr_compare_actual_and_expected :: proc(t: ^testing.T, prefix_called_from: string, actual: [dynamic]ast.Stmt, expected: []ast.Stmt) {
+    msgs_arena: virtual.Arena
+    msgs_arena_allocator := virtual.arena_allocator(&msgs_arena)
+    defer virtual.arena_destroy(&msgs_arena)
+
+    sb := strings.builder_make(allocator = msgs_arena_allocator)
+    if len(actual) != len(expected) {
+        testing.fail_now(t, fmt.sbprintf(&sb, "[%s] Wrong number of Ast Node parsed: expected %d, got %d", prefix_called_from, len(expected), len(actual)))
+    }
+
+    for &node, index in actual {
+        strings.builder_reset(&sb)
+
+        wrapped, ok := node.(^ast.WrapExpr)
+        if !ok {
+            str := fmt.sbprintf(&sb,
+                                "[%s] Wrong Statement at %d index, parsed ast is not an ^ast.WrapExpr",
+                                prefix_called_from,
+                                index + 1) // 1 base index, my brain prefer that way in this case
+            testing.expect(t, false, str) 
+        }
+
+        str := fmt.sbprintf(&sb,
+                            "[%s] Mismatch at Node %d",
+                            prefix_called_from,
+                            index + 1) // 1 base index, my brain prefer that way
+        testing.expect(t, compare_stmt(wrapped, expected[index]), str) 
+    }
 }

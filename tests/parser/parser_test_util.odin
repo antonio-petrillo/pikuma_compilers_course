@@ -55,50 +55,33 @@ compare_stmt :: proc(a, b: ast.Stmt) -> bool {
     result := true
     switch kind in a {
     case ^ast.Print:
-        _, result = b.(^ast.Print)
+        print, ok := b.(^ast.Print)
+        if !ok do return false
+        return compare_expr(kind.expr, print.expr)
     case ^ast.Println:
-        _, result = b.(^ast.Println)
+        println, ok := b.(^ast.Println)
+        if !ok do return false
+        return compare_expr(kind.expr, println.expr)
+    case ^ast.WrapExpr:
+        wrapped, ok := b.(^ast.WrapExpr)
+        if !ok do return false
+        return compare_expr(kind.expr, wrapped.expr)
+    case ^ast.If:
+        if_stmt, ok := b.(^ast.If)
+        if !ok do return false
+        if !compare_expr(kind.cond, if_stmt.cond) do return false
+        if len(kind.then_branch) != len(if_stmt.then_branch) do return false
+
+        for node, index in kind.then_branch {
+            if !compare_stmt(node, if_stmt.then_branch[index]) do return false
+        }
+
+        if len(kind.else_branch) != len(if_stmt.else_branch) do return false
+
+        for node, index in kind.else_branch {
+            if !compare_stmt(node, if_stmt.else_branch[index]) do return false
+        }
+
     }
     return result
-}
-
-compare_ast_node :: proc(a, b: ast.AstNode) -> bool {
-    context.allocator = context.temp_allocator
-    defer free_all(context.temp_allocator)
-
-    result := true
-    switch kind in a {
-    case ast.Expr:
-        expr, ok := b.(ast.Expr)
-        if !ok do return false
-        result = compare_expr(kind, expr)
-    case ast.Stmt:
-        expr, ok := b.(ast.Stmt)
-        if !ok do return false
-        result = compare_stmt(kind, expr)
-    }
-    
-    return result
-}
-
-compare_actual_and_expected :: proc(t: ^testing.T, prefix_called_from: string, actual: [dynamic]ast.AstNode, expected: []ast.AstNode) {
-    msgs_arena: virtual.Arena
-    msgs_arena_allocator := virtual.arena_allocator(&msgs_arena)
-    defer virtual.arena_destroy(&msgs_arena)
-
-    sb := strings.builder_make(allocator = msgs_arena_allocator)
-    if len(actual) != len(expected) {
-        testing.fail_now(t, fmt.sbprintf(&sb, "[%s] Wrong number of Ast Node parsed: expected %d, got %d", prefix_called_from, len(expected), len(actual)))
-    }
-
-
-    for node, index in actual {
-        strings.builder_reset(&sb)
-
-        str := fmt.sbprintf(&sb,
-                            "[%s] Mismatch at Node %d",
-                            prefix_called_from,
-                            index + 1) // 1 base index, my brain prefer that way
-        testing.expect(t, compare_ast_node(node, expected[index]), str) 
-    }
 }

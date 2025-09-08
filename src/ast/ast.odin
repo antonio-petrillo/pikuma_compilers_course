@@ -136,8 +136,3 @@ Stmt :: union #no_nil {
         ^Println,
         ^If,
 }
-
-AstNode :: union #no_nil {
-    Expr,
-    Stmt,
-}
