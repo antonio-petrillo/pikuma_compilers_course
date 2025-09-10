@@ -86,7 +86,7 @@ tokenize :: proc(source: []u8, lexer_arena: ^virtual.Arena) -> ([dynamic]token.T
         case '\n':
             lexer.line += 1
             fallthrough
-        case '\t', ' ':
+        case '\t', ' ', '\r':
             continue loop
 
         case '0'..='9':
