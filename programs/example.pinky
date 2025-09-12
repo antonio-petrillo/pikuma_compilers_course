@@ -1,52 +1,3 @@
-print "Hello, " + "World!"
-println "Hello, " + "World!"
-
-if true then
-   println "then branch 1"
-else 
-   println "else branch 1"
-end
-
-if ~true then
-   println "then branch 2"
-else 
-   println "else branch 2"
-end
-
-if true then
-   println "Hello" + ", " + "World" + "!" + "1"
-end
-
-if ~true then
-   println "Hello" + ", " + "World" + "!" + "2"
-end
-
-println "following if-else with multiple clause per branch"
-println ""
-
-if true then
-   println "then branch 1 - 1"
-   println "then branch 1 - 2"
-   println "then branch 1 - 3"
-else 
-   println "Should not go here"
-end
-
-println ""
-
-if ~true then
-   println "Should not go here"
-else 
-   println "else branch 1 - 1"
-   println "else branch 1 - 2"
-   println "else branch 1 - 3"
-end
-
-a := 1
-println a + 1
-println "fucntions"
-println ""
-
 func f(x)
  println x
  println x % 2
@@ -61,3 +12,9 @@ end
 
 println 1
 println double(1)
+
+i := 0
+while i < 10 do
+      println i
+      i := i + 1
+end

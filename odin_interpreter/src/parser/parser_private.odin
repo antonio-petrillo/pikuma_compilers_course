@@ -289,9 +289,36 @@ parse_stmt :: proc(parser: ^Parser) -> (stmt: ast.Stmt, err: Parser_Error) {
         stmt = parse_func(parser) or_return
     case token.Token_Type.Ret:
         stmt = parse_ret(parser) or_return
+    case token.Token_Type.While:
+        stmt = parse_while(parser) or_return
+    case token.Token_Type.For:
+        stmt = parse_for(parser) or_return
     case: 
         stmt = parse_wrap_expr(parser) or_return
     }
+    return stmt, .None
+}
+
+parse_for :: proc(parser: ^Parser) -> (stmt: ast.Stmt, err: Parser_Error) {
+    if !match(parser, token.Token_Type.For) do panic("Called 'parse_for' on wrong token")
+    /* for_stmt := new(ast.For) */
+    return stmt, .None
+}
+
+parse_while :: proc(parser: ^Parser) -> (stmt: ast.Stmt, err: Parser_Error) {
+    if !match(parser, token.Token_Type.While) do panic("Called 'parse_while' on wrong token")
+    while_stmt := new(ast.While)
+    while_stmt.cond = parse_expr(parser) or_return
+
+    if !match(parser, token.Token_Type.Do) do return stmt, .MissingDoInLoop
+    
+    for !match(parser, token.Token_Type.End) {
+        body_stmt := parse_stmt(parser) or_return
+        append(&while_stmt.body, body_stmt)
+    }
+    if previous(parser).token_type != token.Token_Type.End do return stmt, .MissingEndInWhile
+
+    stmt = ast.Stmt(while_stmt)
     return stmt, .None
 }
 

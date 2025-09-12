@@ -18,6 +18,9 @@ Parser_Error :: enum {
     MissingEndInFunc,
     MissingCommaInArgList,
     UnexpectedTokenInFuncDefinition,
+    MissingDoInLoop,
+    MissingEndInWhile,
+    MissingEndInFor,
 }
 
 parser_error_to_string :: proc(pe: Parser_Error) -> (s: string) {
@@ -31,9 +34,12 @@ parser_error_to_string :: proc(pe: Parser_Error) -> (s: string) {
     case .MissingEndInIf: s = "Missing 'end' after 'if <expr> then <stmt>*'"
     case .UnexpectedEOF: s = "Unexpected EOF"
     case .MissingOpenParen: s = "Missing opening parentheses '('"
-    case .MissingEndInFunc: s = "Missing 'end' after 'func <identifier> (<expr> *) <stmt>* end'"
+    case .MissingEndInFunc: s = "Missing 'end' after 'func <identifier> (<expr> *) <stmt>*'"
     case .MissingCommaInArgList: s = "Missing ',' in argument list"
     case .UnexpectedTokenInFuncDefinition: s = "Unexpected token in function definition"
+    case .MissingDoInLoop: s = "Missing 'do' after 'while <cond_expr>'"
+    case .MissingEndInWhile: s =  "Missing 'end' after 'while <expr> do <stmt>*'"
+    case .MissingEndInFor: s =  "Missing 'end' after 'for (<expr>|<assign>;<expr>;<assign>) do <stmt>*'"
     }
     return
 }

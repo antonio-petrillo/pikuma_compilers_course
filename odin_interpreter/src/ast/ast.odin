@@ -120,12 +120,11 @@ Assignment :: struct {
 }
 
 While :: struct {
-    
+    cond: Expr,
+    body: [dynamic]Stmt,
 }
 
-For :: struct {
-    
-}
+For :: struct {} // ?
 
 Function :: struct {
     identifier: Identifier,
@@ -154,6 +153,7 @@ Stmt :: union #no_nil {
         ^Assignment,
         ^Function,
         ^Return,
+        ^While,
 }
 
 Program :: [dynamic]Stmt

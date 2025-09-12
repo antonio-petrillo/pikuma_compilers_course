@@ -251,6 +251,20 @@ stmt_to_string_with_builder :: proc(stmt: Stmt, sb: ^strings.Builder, indentatio
         }
         strings.write_string(sb, "Return := {\n")
         expr_to_string_with_builder(stmt_.expr, sb, indentation + 1)
+
+    case ^While:
+        strings.write_string(sb, "While := {\n")
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "cond = ")
+        expr_to_string_with_builder(stmt_.cond, sb, indentation + 1)
+        strings.write_string(sb, ",\n")
+        strings.write_string(sb, "body = {")
+        for body_stmt in stmt_.body {
+            stmt_to_string_with_builder(body_stmt, sb, indentation + 2)
+            strings.write_string(sb, ",\n")
+        }
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "}\n")
     }
 }
 
@@ -288,5 +302,9 @@ stmt_to_string_summary_with_builder :: proc(stmt: Stmt, sb: ^strings.Builder, in
         strings.write_string(sb, "Return := {\n")
         expr_to_string_summary_with_builder(stmt_.expr, sb)
         strings.write_string(sb, "}")
+    case ^While:
+        strings.write_string(sb, "While := (")
+        expr_to_string_summary_with_builder(stmt_.cond, sb)
+        strings.write_string(sb, "){...}")
     }
 }

@@ -376,6 +376,19 @@ interpret_stmt :: proc(node: ast.Stmt, env: ^Interpreter_Env) -> (result: Runtim
         env.vars[stmt.identifier] = init
     case ^ast.Function:
         env.functions[stmt.identifier] = stmt
+    case ^ast.While:
+        for {
+            cond_expr := interpret_expr(stmt.cond, env) or_return
+            cond, ok := cond_expr.(Bool)
+            if !ok do return NULL, .Stop, .ExpectedBoolInCondition
+            if !cond do break
+
+            for body_stmt in stmt.body {
+                result, state = interpret_stmt(body_stmt, env) or_return
+                if state != .Continue do break
+            }
+        }
+        
     case ^ast.Return:
         result = interpret_expr(stmt.expr, env) or_return
         state = .Stop
