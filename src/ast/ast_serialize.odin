@@ -242,6 +242,15 @@ stmt_to_string_with_builder :: proc(stmt: Stmt, sb: ^strings.Builder, indentatio
         }
         pad_builder(sb, indentation + 1)
         strings.write_string(sb, "}\n")
+
+    case ^Return:
+        defer {
+            pad_builder(sb, indentation)
+            /* strings.write_byte(sb, '}') */
+            strings.write_string(sb, "}") // odin-mode broken 
+        }
+        strings.write_string(sb, "Return := {\n")
+        expr_to_string_with_builder(stmt_.expr, sb, indentation + 1)
     }
 }
 
@@ -275,5 +284,9 @@ stmt_to_string_summary_with_builder :: proc(stmt: Stmt, sb: ^strings.Builder, in
         strings.write_string(sb, "Function := '")
         strings.write_string(sb, string(stmt_.identifier))
         strings.write_string(sb, "(...){...}")
+    case ^Return:
+        strings.write_string(sb, "Return := {\n")
+        expr_to_string_summary_with_builder(stmt_.expr, sb)
+        strings.write_string(sb, "}")
     }
 }

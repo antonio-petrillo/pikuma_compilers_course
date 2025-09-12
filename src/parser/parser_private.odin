@@ -287,9 +287,20 @@ parse_stmt :: proc(parser: ^Parser) -> (stmt: ast.Stmt, err: Parser_Error) {
         stmt = parse_assignment(parser) or_return
     case token.Token_Type.Func:
         stmt = parse_func(parser) or_return
+    case token.Token_Type.Ret:
+        stmt = parse_ret(parser) or_return
     case: 
         stmt = parse_wrap_expr(parser) or_return
     }
+    return stmt, .None
+}
+
+parse_ret :: proc(parser: ^Parser) -> (stmt: ast.Stmt, err: Parser_Error) {
+    if !match(parser, token.Token_Type.Ret) do panic("Called 'parse_ret' on wrong token")
+    ret_stmt := new(ast.Return)
+    ret_stmt.expr = parse_expr(parser) or_return
+
+    stmt = ast.Stmt(ret_stmt)
     return stmt, .None
 }
 

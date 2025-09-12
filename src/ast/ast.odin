@@ -142,6 +142,10 @@ If :: struct {
     // in another word there is the possibility to create an emtpy else branch
 }
 
+Return :: struct {
+    expr: Expr,
+}
+
 Stmt :: union #no_nil {
         ^WrapExpr,
         ^Print,
@@ -149,4 +153,7 @@ Stmt :: union #no_nil {
         ^If,
         ^Assignment,
         ^Function,
+        ^Return,
 }
+
+Program :: [dynamic]Stmt

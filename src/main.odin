@@ -87,7 +87,7 @@ main :: proc() {
         }
     }
 
-    nodes, parser_err := parser.parse(tokens[:], &arena)
+    program, parser_err := parser.parse(tokens[:], &arena)
     if parser_err != parser.Parser_Error.None {
         fmt.eprintf("Error parsing tokens: %s\n", parser.parser_error_to_string(parser_err))
         os.exit(1)
@@ -99,7 +99,7 @@ main :: proc() {
         fmt.print("###########################\n")
         defer fmt.print("#########################\n#########################\n\n")
 
-        for &node, index in nodes {
+        for &node, index in program {
             str := ast.stmt_to_string(node) 
             defer delete(str)
             fmt.print("###########################\n")
@@ -114,20 +114,12 @@ main :: proc() {
         fmt.print("###########################\n")
         defer fmt.print("\n#########################\n#########################\n\n")
 
-        /* env := make(map[ast.Identifier]interpreter.Runtime_Type)  */
-        /* defer delete(env) */
-
         env := new(interpreter.Interpreter_Env)
         defer free(env)
 
-        for &node in nodes {
-            str := ast.stmt_to_string_summary(node)
-            defer delete(str)
-            _, err := interpreter.interpret(node, env, &arena)
-            if err != interpreter.Runtime_Error.None {
-                fmt.printf("Interpreter Error: %s\n", interpreter.interpreter_error_to_string(err))
-                continue
-            }
+        if err := interpreter.interpret(program, env, &arena); err != interpreter.Runtime_Error.None {
+            fmt.printf("Interpreter Error: %s\n", interpreter.interpreter_error_to_string(err))
+            os.exit(1)
         }
     }
 
