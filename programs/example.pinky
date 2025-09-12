@@ -54,3 +54,10 @@ func f(x)
 end
 
 f(32)
+
+func double(x)
+     ret x << 1
+end
+
+println 1
+println double(1)

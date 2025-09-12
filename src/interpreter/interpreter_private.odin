@@ -327,16 +327,22 @@ interpret_expr :: proc(expr_node: ast.Expr, env: ^Interpreter_Env) -> (result: R
             new_env.vars[identifier] = interpret_expr(expr.params[index], env) or_return
         }
 
+        func_result: Runtime_Type
+        state: Runtime_State = .Continue
         for stmt in func.body {
-            result = interpret_stmt(stmt, new_env) or_return
+            func_result, state = interpret_stmt(stmt, new_env) or_return
+            if state != .Continue do return func_result, .None // return called
         }
     }
     return result, .None
 }
 
+Runtime_State :: enum {
+        Continue,
+        Stop,
+}
 
-
-interpret_stmt :: proc(node: ast.Stmt, env: ^Interpreter_Env) -> (result: Runtime_Type, err: Runtime_Error) {
+interpret_stmt :: proc(node: ast.Stmt, env: ^Interpreter_Env) -> (result: Runtime_Type, state: Runtime_State, err: Runtime_Error) {
     env := env
     result = NULL
     switch stmt in node {
@@ -353,14 +359,16 @@ interpret_stmt :: proc(node: ast.Stmt, env: ^Interpreter_Env) -> (result: Runtim
     case ^ast.If:
         cond_expr := interpret_expr(stmt.cond, env) or_return
         cond, ok := cond_expr.(Bool)
-        if !ok do return NULL, .ExpectedBoolInCondition
+        if !ok do return NULL, .Stop, .ExpectedBoolInCondition
         if cond {
             for then_stmt in stmt.then_branch {
-                result = interpret_stmt(then_stmt, env) or_return
+                result, state = interpret_stmt(then_stmt, env) or_return
+                if state != .Continue do break
             } 
         } else {
             for then_stmt in stmt.else_branch {
-                result = interpret_stmt(then_stmt, env) or_return
+                result, state = interpret_stmt(then_stmt, env) or_return
+                if state != .Continue do break
             } 
         }
     case ^ast.Assignment:
@@ -368,10 +376,20 @@ interpret_stmt :: proc(node: ast.Stmt, env: ^Interpreter_Env) -> (result: Runtim
         env.vars[stmt.identifier] = init
     case ^ast.Function:
         env.functions[stmt.identifier] = stmt
+    case ^ast.Return:
+        result = interpret_expr(stmt.expr, env) or_return
+        state = .Stop
     }
-    return result, .None
+    return result, state, .None
 }
 
 interpret_program :: proc(program: ast.Program, env: ^Interpreter_Env) -> (err: Runtime_Error) {
+
+    for &stmt in program {
+        _, state := interpret_stmt(stmt, env) or_return
+        if state != .Continue do break
+    }
+
     return 
+    
 }
