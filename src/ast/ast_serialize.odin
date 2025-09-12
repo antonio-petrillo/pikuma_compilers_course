@@ -33,6 +33,10 @@ expr_to_string_summary_with_builder :: proc(expr: Expr, sb: ^strings.Builder) {
     case Bool:
         bool_str := expr_ ? "true" : "false"
         strings.write_string(sb, bool_str)
+    case Identifier:
+        strings.write_string(sb, "Identifier := '")
+        strings.write_string(sb, string(expr_))
+        strings.write_string(sb, "'")
     case ^BinOp:
         expr_to_string_summary_with_builder(expr_.left, sb)
         strings.write_byte(sb, ' ')
@@ -46,6 +50,10 @@ expr_to_string_summary_with_builder :: proc(expr: Expr, sb: ^strings.Builder) {
         strings.write_string(sb, "(")
         expr_to_string_summary_with_builder(expr_.expr, sb)
         strings.write_string(sb, ")")
+    case ^FuncCall:
+        strings.write_string(sb, "FuncCall := '")
+        strings.write_string(sb, string(expr_.identifier))
+        strings.write_string(sb, "' (...)\n")
     }
 }
 
@@ -70,6 +78,18 @@ expr_to_string_with_builder :: proc(expr: Expr, sb: ^strings.Builder, indentatio
         bool_str := expr_ ? "true" : "false"
         strings.write_string(sb, bool_str)
         strings.write_byte(sb, '>')
+    case Identifier:
+        defer {
+            pad_builder(sb, indentation)
+            /* strings.write_byte(sb, '}') */
+            strings.write_string(sb, "}") // odin-mode broken 
+        }
+        strings.write_string(sb, "Identifier {\n")
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "indetifier = ")
+        strings.write_string(sb, "'")
+        strings.write_string(sb, string(expr_))
+        strings.write_string(sb, "'\n")
     case ^BinOp:
         defer {
             pad_builder(sb, indentation)
@@ -103,6 +123,22 @@ expr_to_string_with_builder :: proc(expr: Expr, sb: ^strings.Builder, indentatio
         strings.write_string(sb, "Grouping {\n")
         expr_to_string_with_builder(expr_.expr, sb, indentation + 1)
         strings.write_byte(sb, '\n')
+    case ^FuncCall:
+        defer {
+            pad_builder(sb, indentation)
+            strings.write_string(sb, "}")
+        }
+        strings.write_string(sb, "FuncCall := '\n")
+        strings.write_string(sb, string(expr_.identifier))
+        strings.write_string(sb, "' {\n")
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "params = {")
+        for param in expr_.params {
+            expr_to_string_with_builder(param, sb, indentation + 2)
+            strings.write_string(sb, ",\n")
+        }
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "}\n")
     }
 }
 
@@ -165,6 +201,47 @@ stmt_to_string_with_builder :: proc(stmt: Stmt, sb: ^strings.Builder, indentatio
         strings.write_string(sb, "\n")
         pad_builder(sb, indentation)
         strings.write_string(sb, "}") // odin-mode broken 
+    case ^Assignment:
+        defer {
+            pad_builder(sb, indentation)
+            /* strings.write_byte(sb, '}') */
+            strings.write_string(sb, "}") // odin-mode broken 
+        }
+        strings.write_string(sb, "Assignment := {\n")
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "indetifier = ")
+        strings.write_string(sb, "'")
+        strings.write_string(sb, string(stmt_.identifier))
+        strings.write_string(sb, "'\n")
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "init = ")
+        expr_to_string_summary_with_builder(stmt_.init, sb)
+        strings.write_string(sb, "\n")
+    case ^Function:
+        defer {
+            pad_builder(sb, indentation)
+            /* strings.write_byte(sb, '}') */
+            strings.write_string(sb, "}") // odin-mode broken 
+        }
+        strings.write_string(sb, "Func := '\n")
+        strings.write_string(sb, string(stmt_.identifier))
+        strings.write_string(sb, "' {\n")
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "params = {")
+        for param in stmt_.params {
+            expr_to_string_with_builder(param, sb, indentation + 2)
+            strings.write_string(sb, ",\n")
+        }
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "}\n")
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "body = {")
+        for body_stmt in stmt_.body {
+            stmt_to_string_with_builder(body_stmt, sb, indentation + 2)
+            strings.write_string(sb, ",\n")
+        }
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "}\n")
     }
 }
 
@@ -187,6 +264,16 @@ stmt_to_string_summary_with_builder :: proc(stmt: Stmt, sb: ^strings.Builder, in
         strings.write_string(sb, "If := ")
         strings.write_string(sb, "'")
         expr_to_string_summary_with_builder(stmt_.cond, sb)
-        strings.write_string(sb, "' {...} else {...}}\n")
+        strings.write_string(sb, "' {...} else {...}}")
+    case ^Assignment:
+        strings.write_string(sb, "Assignment := '")
+        strings.write_string(sb, string(stmt_.identifier))
+        strings.write_string(sb, " := ")
+        expr_to_string_summary_with_builder(stmt_.init, sb)
+        strings.write_string(sb, "'")
+    case ^Function:
+        strings.write_string(sb, "Function := '")
+        strings.write_string(sb, string(stmt_.identifier))
+        strings.write_string(sb, "(...){...}")
     }
 }

@@ -13,6 +13,11 @@ Parser_Error :: enum {
     UnclosedParen,
     MissingThenInIf,
     MissingEndInIf,
+    UnexpectedEOF,
+    MissingOpenParen,
+    MissingEndInFunc,
+    MissingCommaInArgList,
+    UnexpectedTokenInFuncDefinition,
 }
 
 parser_error_to_string :: proc(pe: Parser_Error) -> (s: string) {
@@ -24,6 +29,11 @@ parser_error_to_string :: proc(pe: Parser_Error) -> (s: string) {
     case .UnclosedParen: s = "Missing closing parenthesis ')'"
     case .MissingThenInIf: s = "Missing 'then' after 'if <expr>'"
     case .MissingEndInIf: s = "Missing 'end' after 'if <expr> then <stmt>*'"
+    case .UnexpectedEOF: s = "Unexpected EOF"
+    case .MissingOpenParen: s = "Missing opening parentheses '('"
+    case .MissingEndInFunc: s = "Missing 'end' after 'func <identifier> (<expr> *) <stmt>* end'"
+    case .MissingCommaInArgList: s = "Missing ',' in argument list"
+    case .UnexpectedTokenInFuncDefinition: s = "Unexpected token in function definition"
     }
     return
 }

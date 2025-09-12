@@ -220,7 +220,7 @@ parse_power :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
 
 parse_primary :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
     if match(parser, token.Token_Type.LeftParen) {
-        expr = parse_addition(parser) or_return
+        expr = parse_expr(parser) or_return
         if !match(parser, token.Token_Type.RightParen) {
             return expr, .UnclosedParen
         }
@@ -253,37 +253,80 @@ parse_primary :: proc(parser: ^Parser) -> (expr: ast.Expr, err: Parser_Error) {
         str := strings.trim(tok.lexeme, "\"")
         return ast.String(str), .None
 
+        case token.Token_Type.Identifier:
+        identifier := ast.Identifier(tok.lexeme)
+        if match(parser, token.Token_Type.LeftParen) {
+            func_call := new(ast.FuncCall)
+            func_call.identifier = identifier
+            for !match(parser, token.Token_Type.RightParen) {
+                expr_param := parse_expr(parser) or_return
+                append(&func_call.params, expr_param)
+                if match(parser, token.Token_Type.RightParen) do break
+                if !match(parser, token.Token_Type.Comma) do return expr, .MissingCommaInArgList
+            }
+            if previous(parser).token_type != token.Token_Type.RightParen do return expr, .UnclosedParen
+            return func_call, .None
+        }
+        return identifier, .None
+
         case: 
         return expr, .InvalidPrimaryExpression
     }
 }
 
 
-parse_stmt :: proc(parser: ^Parser) -> (node: ast.Stmt, err: Parser_Error) {
+parse_stmt :: proc(parser: ^Parser) -> (stmt: ast.Stmt, err: Parser_Error) {
     if is_eof(parser) do return // allow for empty program
 
     #partial switch peek(parser).token_type {
     case token.Token_Type.Print, token.Token_Type.Println:
-        stmt := parse_print(parser) or_return
-        node = ast.Stmt(stmt)
+        stmt = parse_print(parser) or_return
     case token.Token_Type.If:
-        stmt := parse_if(parser) or_return
-        node = ast.Stmt(stmt)
-    /* case token.Token_Type.While: */
-    /*     stmt := parse_while(parser) or_return */
-    /*     node = ast.While(stmt) */
-    /* case token.Token_Type.For: */
-    /*     stmt := parse_for(parser) or_return */
-    /*     node = ast.For(stmt) */
-    /* case token.Token_Type.Func: */
-    /*     stmt := parse_func(parser) or_return */
-    /*     node = ast.Func(stmt) */
+        stmt = parse_if(parser) or_return
+    case token.Token_Type.Identifier:
+        stmt = parse_assignment(parser) or_return
+    case token.Token_Type.Func:
+        stmt = parse_func(parser) or_return
     case: 
-        wrap_expr := new(ast.WrapExpr)
-        wrap_expr.expr = parse_expr(parser) or_return
-        node = wrap_expr
+        stmt = parse_wrap_expr(parser) or_return
     }
-    return node, .None
+    return stmt, .None
+}
+
+parse_func :: proc(parser: ^Parser) -> (stmt: ast.Stmt, err: Parser_Error) {
+    if !match(parser, token.Token_Type.Func) do panic("Called 'parse_func' on wrong token")
+    if is_eof(parser) do return stmt, .UnexpectedEOF
+
+    identifier := ast.Identifier(advance(parser).lexeme)
+    if !match(parser, token.Token_Type.LeftParen) do return stmt, .MissingOpenParen
+
+    func := new(ast.Function)
+    stmt = func
+
+    func.identifier = identifier
+    for !match(parser, token.Token_Type.RightParen) {
+        if !match(parser, token.Token_Type.Identifier) do return stmt, .UnexpectedTokenInFuncDefinition
+        append(&func.params, ast.Identifier(previous(parser).lexeme))
+        if match(parser, token.Token_Type.RightParen) do break
+        if !match(parser, token.Token_Type.Comma) do return stmt, .MissingCommaInArgList
+    }
+    if is_eof(parser) do return stmt, .UnexpectedEOF
+    if previous(parser).token_type != token.Token_Type.RightParen do return stmt, .UnclosedParen
+
+    for !match(parser, token.Token_Type.End) {
+        body_stmt := parse_stmt(parser) or_return
+        append(&func.body, body_stmt)
+    }
+    if previous(parser).token_type != token.Token_Type.End do return stmt, .MissingEndInFunc
+
+    return stmt, .None
+}
+
+parse_wrap_expr :: proc(parser: ^Parser) -> (stmt: ast.Stmt, err: Parser_Error) {
+    wrap_expr := new(ast.WrapExpr)
+    wrap_expr.expr = parse_expr(parser) or_return
+    stmt = wrap_expr
+    return stmt, .None
 }
 
 parse_print :: proc(parser: ^Parser) -> (stmt: ast.Stmt, err: Parser_Error) {
@@ -331,5 +374,22 @@ parse_if :: proc(parser: ^Parser) -> (stmt: ast.Stmt, err: Parser_Error) {
 
     if previous(parser).token_type != token.Token_Type.End do return stmt, .MissingEndInIf
 
+    return stmt, .None
+}
+
+parse_assignment :: proc(parser: ^Parser) -> (stmt: ast.Stmt, err: Parser_Error) {
+    if next := lookahead(parser); next != nil && next.?.token_type != token.Token_Type.Assign {
+        return parse_wrap_expr(parser)
+    }
+
+    assignment := new(ast.Assignment)
+    assignment.identifier = ast.Identifier(peek(parser).lexeme) 
+    advance(parser)
+
+    if !match(parser, token.Token_Type.Assign) do panic("Called 'parse_assignment' on wrong token")
+
+    assignment.init = parse_expr(parser) or_return
+
+    stmt = assignment
     return stmt, .None
 }

@@ -19,6 +19,9 @@ Runtime_Error :: enum {
     BitShiftWorksMustBePositive,
     LogicConnectorOnlyOnBools,
     ExpectedBoolInCondition,
+    UndefinedVariable,
+    UndefinedFunction,
+    MismatchedNumberArgs,
 }
 
 Bool :: bool
@@ -29,7 +32,7 @@ Null :: distinct struct {}
 
 NULL :: Null{}
 
-Interpreter_Result :: union #no_nil {
+Runtime_Type :: union #no_nil {
     Null,
     Bool,
     Integer,
@@ -37,9 +40,9 @@ Interpreter_Result :: union #no_nil {
     String,
 }
 
-result_to_string :: proc(ir: Interpreter_Result) -> string {
+result_to_string :: proc(rt: Runtime_Type) -> string {
     sb := strings.builder_make()
-    switch res in ir {
+    switch res in rt {
     case Null: strings.write_string(&sb, "NULL")
     case Bool: strings.write_string(&sb, res ? "true" : "false")
     case Integer: strings.write_i64(&sb, res)
@@ -62,11 +65,14 @@ interpreter_error_to_string :: proc(ie: Runtime_Error) -> (s: string) {
     case .BitShiftWorksMustBePositive: s = "Right hand side of '>>' and '<<' cannot be negative"
     case .LogicConnectorOnlyOnBools: s = "Logic connectors 'and' and 'or' can be used only 'bool' types"
     case .ExpectedBoolInCondition: s = "Expected Bool in condition"
+    case .UndefinedVariable: s = "Undefined variable"
+    case .UndefinedFunction: s = "Undefined function"
+    case .MismatchedNumberArgs: s = "Mismatched number of arguments in function call"
     }
     return
 }
 
-interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err: Runtime_Error) {
+interpret_expr :: proc(expr_node: ast.Expr, env: ^Interpreter_Env) -> (result: Runtime_Type, err: Runtime_Error) {
     switch expr in expr_node {
     case ast.Integer:
         result = Integer(expr)
@@ -76,8 +82,12 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
         result = String(expr)
     case ast.Bool:
         result = Bool(expr)
+    case ast.Identifier:
+        env_result, ok := env.vars[expr]
+        if !ok do return result, .UndefinedVariable
+        result = env_result
     case ^ast.UnaryOp:
-        result = interpret_expr(expr.operand) or_return
+        result = interpret_expr(expr.operand, env) or_return
         switch expr.kind {
         case ast.UnaryOpKind.Not: 
             bool_res, ok := result.(Bool)
@@ -87,28 +97,24 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
             #partial switch num in result {
                 case ast.Integer, ast.Float:
                 // noop
-                
                 case:
                 return result, .UnaryOpTypeMismatch
             }
-
         case ast.UnaryOpKind.Negate:
             #partial switch num in result {
                 case ast.Integer:
                 result = ast.Integer(num * -1)
-
                 case ast.Float:
                 result = ast.Float(num * -1.0)
-                
                 case:
                 return result, .UnaryOpTypeMismatch
             }
         }
     case ^ast.BinOp:
-        left := interpret_expr(expr.left) or_return
-        right := interpret_expr(expr.right) or_return
+        left := interpret_expr(expr.left, env) or_return
         switch expr.kind {
         case ast.BinaryOpKind.Shl, ast.BinaryOpKind.Shr:
+            right := interpret_expr(expr.right, env) or_return
             #partial switch left_operand in left {
             case ast.Integer:
                 right_operand, ok := right.(Integer)
@@ -122,6 +128,7 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
             #partial switch left_operand in left {
             case ast.Bool:
                 if left_operand {
+                    right := interpret_expr(expr.right, env) or_return
                     right_operand, ok := right.(Bool)
                     if !ok do return result, .BinaryOpTypeMismatch 
                     result = right_operand
@@ -134,6 +141,7 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
             case ast.Bool:
                 if left_operand do result = true
                 else {
+                    right := interpret_expr(expr.right, env) or_return
                     right_operand, ok := right.(Bool)
                     if !ok do return result, .BinaryOpTypeMismatch 
                     result = right_operand
@@ -142,6 +150,7 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
                 return result, .LogicConnectorOnlyOnBools
             }
         case ast.BinaryOpKind.Neq:
+            right := interpret_expr(expr.right, env) or_return
             #partial switch left_operand in left {
             case ast.Integer:
                 right_operand, ok := right.(Integer)
@@ -161,6 +170,7 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
                 result = left_operand != right_operand
             }
         case ast.BinaryOpKind.Eq:
+            right := interpret_expr(expr.right, env) or_return
             #partial switch left_operand in left {
             case ast.Integer:
                 right_operand, ok := right.(Integer)
@@ -182,16 +192,19 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
         case ast.BinaryOpKind.Lt:
             #partial switch left_operand in left {
             case ast.Integer:
+                right := interpret_expr(expr.right, env) or_return
                 right_operand, ok := right.(Integer)
                 if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand < right_operand
             case ast.Float:
+                right := interpret_expr(expr.right, env) or_return
                 right_operand, ok := right.(Float)
                 if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand < right_operand
             case ast.Bool:
                 return result, .BoolAreNotComparable
             case ast.String:
+                right := interpret_expr(expr.right, env) or_return
                 right_operand, ok := right.(String)
                 if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand < right_operand
@@ -199,16 +212,19 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
         case ast.BinaryOpKind.Le:
             #partial switch left_operand in left {
             case ast.Integer:
+                right := interpret_expr(expr.right, env) or_return
                 right_operand, ok := right.(Integer)
                 if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand <= right_operand
             case ast.Float:
+                right := interpret_expr(expr.right, env) or_return
                 right_operand, ok := right.(Float)
                 if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand <= right_operand
             case ast.Bool:
                 return result, .BoolAreNotComparable
             case ast.String:
+                right := interpret_expr(expr.right, env) or_return
                 right_operand, ok := right.(String)
                 if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand <= right_operand
@@ -216,16 +232,19 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
         case ast.BinaryOpKind.Gt:
             #partial switch left_operand in left {
             case ast.Integer:
+                right := interpret_expr(expr.right, env) or_return
                 right_operand, ok := right.(Integer)
                 if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand > right_operand
             case ast.Float:
+                right := interpret_expr(expr.right, env) or_return
                 right_operand, ok := right.(Float)
                 if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand > right_operand
             case ast.Bool:
                 return result, .BoolAreNotComparable
             case ast.String:
+                right := interpret_expr(expr.right, env) or_return
                 right_operand, ok := right.(String)
                 if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand > right_operand
@@ -233,21 +252,25 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
         case ast.BinaryOpKind.Ge:
             #partial switch left_operand in left {
             case ast.Integer:
+                right := interpret_expr(expr.right, env) or_return
                 right_operand, ok := right.(Integer)
                 if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand >= right_operand
             case ast.Float:
+                right := interpret_expr(expr.right, env) or_return
                 right_operand, ok := right.(Float)
                 if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand >= right_operand
             case ast.Bool:
                 return result, .BoolAreNotComparable
             case ast.String:
+                right := interpret_expr(expr.right, env) or_return
                 right_operand, ok := right.(String)
                 if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand >= right_operand
             }
         case ast.BinaryOpKind.Add:
+            right := interpret_expr(expr.right, env) or_return
             #partial switch left_operand in left {
             case ast.Integer:
                 right_operand, ok := right.(Integer)
@@ -265,6 +288,7 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
                 return result, .BinaryOpUnapplicableToType
             }
         case ast.BinaryOpKind.Sub:
+            right := interpret_expr(expr.right, env) or_return
             #partial switch left_operand in left {
             case ast.Integer:
                 right_operand, ok := right.(Integer)
@@ -278,6 +302,7 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
                 return result, .BinaryOpUnapplicableToType
             }
         case ast.BinaryOpKind.Mul:
+            right := interpret_expr(expr.right, env) or_return
             #partial switch left_operand in left {
             case ast.Integer:
                 right_operand, ok := right.(Integer)
@@ -291,6 +316,7 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
                 return result, .BinaryOpUnapplicableToType
             }
         case ast.BinaryOpKind.Div:
+            right := interpret_expr(expr.right, env) or_return
             #partial switch left_operand in left {
             case ast.Integer:
                 right_operand, ok := right.(Integer)
@@ -306,6 +332,7 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
                 return result, .BinaryOpUnapplicableToType
             }
         case ast.BinaryOpKind.Mod:
+            right := interpret_expr(expr.right, env) or_return
             #partial switch left_operand in left {
             case ast.Integer:
                 right_operand, ok := right.(Integer)
@@ -321,6 +348,7 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
                 return result, .BinaryOpUnapplicableToType
             }
         case ast.BinaryOpKind.Exp:
+            right := interpret_expr(expr.right, env) or_return
             #partial switch left_operand in left {
             case ast.Integer:
                 fast_pow :: proc(a, b: i64) -> i64 {
@@ -351,44 +379,70 @@ interpret_expr :: proc(expr_node: ast.Expr) -> (result: Interpreter_Result, err:
             }
         }
     case ^ast.Grouping:
-        return interpret_expr(expr.expr)
-    }
-    return result, .None
-}
+        return interpret_expr(expr.expr, env)
+    case ^ast.FuncCall:
+        new_env := new(Interpreter_Env)
+        defer free(new_env)
 
-interpret_stmt :: proc(node: ast.Stmt) -> (result: Interpreter_Result, err: Runtime_Error) {
-    result = NULL
-    switch stmt in node {
-    case ^ast.Print:
-        expr := interpret_expr(stmt.expr) or_return
-        str := result_to_string(expr)
-        fmt.printf("%s", str)
-    case ^ast.Println:
-        expr := interpret_expr(stmt.expr) or_return
-        str := result_to_string(expr)
-        fmt.printf("%s\n", str)
-    case ^ast.WrapExpr:
-        result = interpret_expr(stmt.expr) or_return
-    case ^ast.If:
-        cond_expr := interpret_expr(stmt.cond) or_return
-        cond, ok := cond_expr.(Bool)
-        if !ok do return NULL, .ExpectedBoolInCondition
-        if cond {
-            for then_stmt in stmt.then_branch {
-                result = interpret_stmt(then_stmt) or_return
-            } 
-        } else {
-            for then_stmt in stmt.else_branch {
-                result = interpret_stmt(then_stmt) or_return
-            } 
+        func, ok := env.functions[expr.identifier]
+        if !ok do return result, .UndefinedFunction
+        if len(func.params) != len(expr.params) do return result, .MismatchedNumberArgs
+
+        for identifier, index in func.params {
+            new_env.vars[identifier] = interpret_expr(expr.params[index], env) or_return
+        }
+
+        for stmt in func.body {
+            result = interpret_stmt(stmt, new_env) or_return
         }
     }
     return result, .None
 }
 
-interpret :: proc(node: ast.Stmt, interpret_arena: ^virtual.Arena) -> (result: Interpreter_Result, err: Runtime_Error) {
+interpret_stmt :: proc(node: ast.Stmt, env: ^Interpreter_Env) -> (result: Runtime_Type, err: Runtime_Error) {
+    env := env
+    result = NULL
+    switch stmt in node {
+    case ^ast.Print:
+        expr := interpret_expr(stmt.expr, env) or_return
+        str := result_to_string(expr)
+        fmt.printf("%s", str)
+    case ^ast.Println:
+        expr := interpret_expr(stmt.expr, env) or_return
+        str := result_to_string(expr)
+        fmt.printf("%s\n", str)
+    case ^ast.WrapExpr:
+        result = interpret_expr(stmt.expr, env) or_return
+    case ^ast.If:
+        cond_expr := interpret_expr(stmt.cond, env) or_return
+        cond, ok := cond_expr.(Bool)
+        if !ok do return NULL, .ExpectedBoolInCondition
+        if cond {
+            for then_stmt in stmt.then_branch {
+                result = interpret_stmt(then_stmt, env) or_return
+            } 
+        } else {
+            for then_stmt in stmt.else_branch {
+                result = interpret_stmt(then_stmt, env) or_return
+            } 
+        }
+    case ^ast.Assignment:
+        init := interpret_expr(stmt.init, env) or_return
+        env.vars[stmt.identifier] = init
+    case ^ast.Function:
+        env.functions[stmt.identifier] = stmt
+    }
+    return result, .None
+}
+
+interpret :: proc(node: ast.Stmt, env: ^Interpreter_Env, interpret_arena: ^virtual.Arena) -> (result: Runtime_Type, err: Runtime_Error) {
     arena_allocator := virtual.arena_allocator(interpret_arena)
     context.allocator = arena_allocator
 
-    return interpret_stmt(node)
+    return interpret_stmt(node, env)
+}
+
+Interpreter_Env :: struct {
+    vars: map[ast.Identifier]Runtime_Type,
+    functions: map[ast.Identifier]^ast.Function,
 }

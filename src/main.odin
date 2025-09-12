@@ -114,10 +114,16 @@ main :: proc() {
         fmt.print("###########################\n")
         defer fmt.print("\n#########################\n#########################\n\n")
 
+        /* env := make(map[ast.Identifier]interpreter.Runtime_Type)  */
+        /* defer delete(env) */
+
+        env := new(interpreter.Interpreter_Env)
+        defer free(env)
+
         for &node in nodes {
             str := ast.stmt_to_string_summary(node)
             defer delete(str)
-            _, err := interpreter.interpret(node, &arena)
+            _, err := interpreter.interpret(node, env, &arena)
             if err != interpreter.Runtime_Error.None {
                 fmt.printf("Interpreter Error: %s\n", interpreter.interpreter_error_to_string(err))
                 continue

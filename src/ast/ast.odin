@@ -8,6 +8,13 @@ String :: string
 
 Bool :: bool
 
+Identifier :: distinct string
+
+FuncCall :: struct {
+    identifier: Identifier,
+    params: [dynamic]Expr,
+}
+
 BinaryOpKind :: enum {
     Add,
     Sub,
@@ -88,9 +95,11 @@ Expr :: union #no_nil {
     Float,
     String,
     Bool,
+    Identifier,
     ^BinOp,
     ^UnaryOp,
     ^Grouping,
+    ^FuncCall,
 }
 
 WrapExpr :: struct {
@@ -105,6 +114,11 @@ Println :: struct {
     expr: Expr,
 }
 
+Assignment :: struct {
+    identifier: Identifier,
+    init: Expr,
+}
+
 While :: struct {
     
 }
@@ -114,11 +128,9 @@ For :: struct {
 }
 
 Function :: struct {
-    
-}
-
-Assignment :: struct {
-    
+    identifier: Identifier,
+    params: [dynamic]Identifier,
+    body: [dynamic]Stmt,
 }
 
 If :: struct {
@@ -135,4 +147,6 @@ Stmt :: union #no_nil {
         ^Print,
         ^Println,
         ^If,
+        ^Assignment,
+        ^Function,
 }
