@@ -18,7 +18,7 @@ interpret_expr :: proc(expr_node: ast.Expr, env: ^Interpreter_Env) -> (result: R
     case ast.Bool:
         result = Bool(expr)
     case ast.Identifier:
-        env_result, ok := env.vars[expr]
+        env_result, ok := env_get_var(env, expr)
         if !ok do return result, .UndefinedVariable
         result = env_result
     case ^ast.UnaryOp:
@@ -316,10 +316,10 @@ interpret_expr :: proc(expr_node: ast.Expr, env: ^Interpreter_Env) -> (result: R
     case ^ast.Grouping:
         return interpret_expr(expr.expr, env)
     case ^ast.FuncCall:
-        new_env := new(Interpreter_Env)
-        defer free(new_env)
+        new_env := new_env_with_parent(env)
+        defer delete_env(new_env)
 
-        func, ok := env.functions[expr.identifier]
+        func, ok := env_get_func(env, expr.identifier)
         if !ok do return result, .UndefinedFunction
         if len(func.params) != len(expr.params) do return result, .MismatchedNumberArgs
 
@@ -359,24 +359,28 @@ interpret_stmt :: proc(node: ast.Stmt, env: ^Interpreter_Env) -> (result: Runtim
     case ^ast.If:
         cond_expr := interpret_expr(stmt.cond, env) or_return
         cond, ok := cond_expr.(Bool)
+        new_env := new_env_with_parent(env)
+        defer delete_env(new_env)
         if !ok do return NULL, .Stop, .ExpectedBoolInCondition
         if cond {
             for then_stmt in stmt.then_branch {
-                result, state = interpret_stmt(then_stmt, env) or_return
+                result, state = interpret_stmt(then_stmt, new_env) or_return
                 if state != .Continue do break
             } 
         } else {
             for then_stmt in stmt.else_branch {
-                result, state = interpret_stmt(then_stmt, env) or_return
+                result, state = interpret_stmt(then_stmt, new_env) or_return
                 if state != .Continue do break
             } 
         }
     case ^ast.Assignment:
         init := interpret_expr(stmt.init, env) or_return
-        env.vars[stmt.identifier] = init
+        env_set_var(env, stmt.identifier, init) 
     case ^ast.Function:
         env.functions[stmt.identifier] = stmt
     case ^ast.While:
+        new_env := new_env_with_parent(env)
+        defer delete_env(new_env)
         for {
             cond_expr := interpret_expr(stmt.cond, env) or_return
             cond, ok := cond_expr.(Bool)
@@ -384,7 +388,7 @@ interpret_stmt :: proc(node: ast.Stmt, env: ^Interpreter_Env) -> (result: Runtim
             if !cond do break
 
             for body_stmt in stmt.body {
-                result, state = interpret_stmt(body_stmt, env) or_return
+                result, state = interpret_stmt(body_stmt, new_env) or_return
                 if state != .Continue do break
             }
         }
@@ -397,12 +401,46 @@ interpret_stmt :: proc(node: ast.Stmt, env: ^Interpreter_Env) -> (result: Runtim
 }
 
 interpret_program :: proc(program: ast.Program, env: ^Interpreter_Env) -> (err: Runtime_Error) {
-
     for &stmt in program {
         _, state := interpret_stmt(stmt, env) or_return
         if state != .Continue do break
     }
-
     return 
-    
+}
+
+new_env_with_parent :: proc(env: ^Interpreter_Env) -> ^Interpreter_Env {
+    new_env := new(Interpreter_Env)
+    new_env.parent = env
+
+    return new_env
+}
+
+env_set_var :: proc(env: ^Interpreter_Env, ident: ast.Identifier, rt: Runtime_Type) {
+    iter := env
+    for {
+        if ident in iter.vars {
+            iter.vars[ident] = rt
+            return
+        }
+        if iter.parent == nil do break
+        iter = iter.parent.?
+    }
+
+    env.vars[ident] = rt 
+} 
+
+env_get_var :: proc(env: ^Interpreter_Env, ident: ast.Identifier) -> (Runtime_Type, bool) {
+    rt, ok := env.vars[ident]
+    if !ok && env.parent != nil {
+        return env_get_var(env.parent.?, ident)
+    }
+    return rt, ok
+}
+
+env_get_func :: proc(env: ^Interpreter_Env, ident: ast.Identifier) -> (^ast.Function, bool) {
+    func, ok := env.functions[ident]
+    if !ok && env.parent != nil {
+        return env_get_func(env.parent.?, ident)
+    }
+    return func, ok
 }

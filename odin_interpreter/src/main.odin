@@ -114,8 +114,8 @@ main :: proc() {
         fmt.print("###########################\n")
         defer fmt.print("\n#########################\n#########################\n\n")
 
-        env := new(interpreter.Interpreter_Env)
-        defer free(env)
+        env := interpreter.new_env()
+        defer interpreter.delete_env(env)
 
         if err := interpreter.interpret(program, env, &arena); err != interpreter.Runtime_Error.None {
             fmt.printf("Interpreter Error: %s\n", interpreter.interpreter_error_to_string(err))

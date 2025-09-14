@@ -77,7 +77,21 @@ interpret :: proc(program: ast.Program, env: ^Interpreter_Env, interpret_arena: 
     return interpret_program(program, env)
 }
 
+new_env :: proc() -> ^Interpreter_Env {
+    env := new(Interpreter_Env)
+    env.parent = nil
+
+    return env
+}
+
+delete_env :: proc(env: ^Interpreter_Env) {
+    clear(&env.vars)
+    clear(&env.functions)
+    free(env)
+}
+
 Interpreter_Env :: struct {
+    parent: Maybe(^Interpreter_Env),
     vars: map[ast.Identifier]Runtime_Type,
     functions: map[ast.Identifier]^ast.Function,
 }
