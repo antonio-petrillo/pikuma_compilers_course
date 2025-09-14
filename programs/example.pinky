@@ -1,20 +1,9 @@
-func f(x)
- println x
- println x % 2
- println x << 1
+for i := 0, 10 do
+  println i
 end
 
-f(32)
+println "second"
 
-func double(x)
-     ret x << 1
-end
-
-println 1
-println double(1)
-
-i := 0
-while i < 10 do
-      println i
-      i := i + 1
+for i := 0, 10, 2 do
+  println i
 end

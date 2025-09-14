@@ -1,7 +1,7 @@
 ODIN_COLLECTION = -collection:pinky=./src
 ODIN_FLAGS = -vet
 SRC_DIR = src/
-OUT_BIN = ../out/pinky
+OUT_BIN = ./out/pinky
 TEST_DIR = tests/
 INPUT_PROGRAM = ../programs/example.pinky
 

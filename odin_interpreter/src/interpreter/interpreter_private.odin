@@ -216,9 +216,25 @@ interpret_expr :: proc(expr_node: ast.Expr, env: ^Interpreter_Env) -> (result: R
                 if !ok do return result, .BinaryOpTypeMismatch 
                 result = left_operand + right_operand
             case ast.String:
-                right_operand, ok := right.(String)
-                if !ok do return result, .BinaryOpTypeMismatch 
-                result = strings.concatenate({left_operand, right_operand})
+                #partial switch right_operand in right {
+                case ast.String:
+                    result = strings.concatenate({left_operand, right_operand})
+
+                case ast.Integer:
+                    sb := strings.builder_make()
+                    strings.write_string(&sb, left_operand)
+                    strings.write_i64(&sb, right_operand)
+                    result = strings.to_string(sb)
+
+                case ast.Float:
+                    sb := strings.builder_make()
+                    strings.write_string(&sb, left_operand)
+                    strings.write_f64(&sb, right_operand, 'f')
+                    result = strings.to_string(sb)
+
+                case:
+                    return result, .BinaryOpTypeMismatch 
+                }
             case:
                 return result, .BinaryOpUnapplicableToType
             }
@@ -391,6 +407,49 @@ interpret_stmt :: proc(node: ast.Stmt, env: ^Interpreter_Env) -> (result: Runtim
                 result, state = interpret_stmt(body_stmt, new_env) or_return
                 if state != .Continue do break
             }
+        }
+
+    // assume works only on integers because why not
+    case ^ast.For:
+        new_env := new_env_with_parent(env)
+        defer delete_env(new_env)
+        start_ := interpret_expr(stmt.start.init, env) or_return
+        start, ok_start := start_.(Integer)
+        if !ok_start do return NULL, .Stop, .ExpectedOnlyIntegerInFor
+        end_ := interpret_expr(stmt.end, env) or_return
+        end, ok_end := end_.(Integer)
+        if !ok_end do return NULL, .Stop, .ExpectedOnlyIntegerInFor
+        step: Runtime_Type
+        if  stmt.step != nil {
+            ok_step: bool
+            step_ := interpret_expr(stmt.step.?, env) or_return
+            step, ok_step = step_.(Integer)
+            if !ok_step do return NULL, .Stop, .ExpectedOnlyIntegerInFor
+        } else {
+            step = Integer(start < end ? 1 : -1)
+        }
+
+        env_set_var(new_env, stmt.start.identifier, start)
+
+        bin_op := ast.BinOp{
+            kind =  start < end ? ast.BinaryOpKind.Lt : ast.BinaryOpKind.Gt,
+            left = stmt.start.identifier,
+            right = ast.Integer(end),
+        }
+
+        for {
+            cond_expr := interpret_expr(&bin_op, new_env) or_return
+            cond, ok := cond_expr.(Bool)
+            if !ok do return NULL, .Stop, .ExpectedBoolInCondition
+            if !cond do break
+
+            for body_stmt in stmt.body {
+                result, state = interpret_stmt(body_stmt, new_env) or_return
+                if state != .Continue do break
+            }
+
+            start_ = new_env.vars[stmt.start.identifier]
+            new_env.vars[stmt.start.identifier] = start_.(Integer) + step.(Integer)
         }
         
     case ^ast.Return:

@@ -1,2 +1,2 @@
 @echo off
-python3 pinky.py scripts/myscript.pinky
+python3 pinky.py ../programs/myscript.pinky

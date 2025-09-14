@@ -1,6 +1,7 @@
 package parser
 
 import "core:mem/virtual"
+import "core:fmt"
 
 import "pinky:token"
 import "pinky:ast"
@@ -20,6 +21,9 @@ Parser_Error :: enum {
     UnexpectedTokenInFuncDefinition,
     MissingDoInLoop,
     MissingEndInWhile,
+    MissingAssignmentInFor,
+    MissingEndLimitInFor,
+    MissingCommaInFor,
     MissingEndInFor,
 }
 
@@ -39,7 +43,10 @@ parser_error_to_string :: proc(pe: Parser_Error) -> (s: string) {
     case .UnexpectedTokenInFuncDefinition: s = "Unexpected token in function definition"
     case .MissingDoInLoop: s = "Missing 'do' after 'while <cond_expr>'"
     case .MissingEndInWhile: s =  "Missing 'end' after 'while <expr> do <stmt>*'"
-    case .MissingEndInFor: s =  "Missing 'end' after 'for (<expr>|<assign>;<expr>;<assign>) do <stmt>*'"
+    case .MissingAssignmentInFor: s =   "Missing 'assignment' in 'for <assignment>, <end>, <step>? do <stmt>*' end"
+    case .MissingCommaInFor: s = "Missing ',' in for statement"
+    case .MissingEndLimitInFor: s =  "Missing '<end>' after 'for <assignment>, ...'"
+    case .MissingEndInFor: s =  "Missing 'end' after 'for <assignment>, <end>, <step>? do <stmt>*'"
     }
     return
 }
@@ -57,12 +64,13 @@ parse :: proc(tokens: []token.Token, parser_arena: ^virtual.Arena) -> ([dynamic]
         current = 0,
     }
 
-    loop: for !is_eof(parser) {
+    for !is_eof(parser) {
         node, err := parse_stmt(parser)
         if err != .None {
+            fmt.printf("error!\n")
             parser_error = err
             encountered_error = true
-            break loop
+            break
         }
         append(&ast_nodes, node) 
     }

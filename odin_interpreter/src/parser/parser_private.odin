@@ -301,7 +301,28 @@ parse_stmt :: proc(parser: ^Parser) -> (stmt: ast.Stmt, err: Parser_Error) {
 
 parse_for :: proc(parser: ^Parser) -> (stmt: ast.Stmt, err: Parser_Error) {
     if !match(parser, token.Token_Type.For) do panic("Called 'parse_for' on wrong token")
-    /* for_stmt := new(ast.For) */
+    for_stmt := new(ast.For)
+    stmt = parse_assignment(parser) or_return
+    assign, ok := stmt.(^ast.Assignment)
+    if !ok do return stmt, .MissingAssignmentInFor
+    for_stmt.start = assign
+    if !match(parser, token.Token_Type.Comma) do return stmt, .MissingCommaInFor
+    for_stmt.end = parse_expr(parser) or_return 
+    if match(parser, token.Token_Type.Comma) {
+        for_stmt.step = parse_expr(parser) or_return
+    } else {
+        for_stmt.step = nil
+    }
+
+    if !match(parser, token.Token_Type.Do) do return stmt, .MissingDoInLoop
+    for !match(parser, token.Token_Type.End) {
+        body_stmt := parse_stmt(parser) or_return
+        append(&for_stmt.body, body_stmt)
+    }
+    if previous(parser).token_type != token.Token_Type.End do return stmt, .MissingEndInFor
+
+    stmt = for_stmt
+
     return stmt, .None
 }
 

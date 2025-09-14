@@ -265,6 +265,32 @@ stmt_to_string_with_builder :: proc(stmt: Stmt, sb: ^strings.Builder, indentatio
         }
         pad_builder(sb, indentation + 1)
         strings.write_string(sb, "}\n")
+    case ^For:
+        strings.write_string(sb, "For := {\n")
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "init = ")
+        stmt_to_string_with_builder(stmt_.start, sb, indentation + 1)
+        strings.write_string(sb, ",\n")
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "end = ")
+        expr_to_string_with_builder(stmt_.end, sb, indentation + 1)
+        strings.write_string(sb, ",\n")
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "step = ")
+        if stmt_.step == nil {
+            strings.write_string(sb, "(NONE)")
+        } else {
+            expr_to_string_with_builder(stmt_.step.?, sb, indentation + 1)
+        }
+        strings.write_string(sb, ",\n")
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "body = ")
+        for body_stmt in stmt_.body {
+            stmt_to_string_with_builder(body_stmt, sb, indentation + 2)
+            strings.write_string(sb, ",\n")
+        }
+        pad_builder(sb, indentation + 1)
+        strings.write_string(sb, "}\n")
     }
 }
 
@@ -305,6 +331,18 @@ stmt_to_string_summary_with_builder :: proc(stmt: Stmt, sb: ^strings.Builder, in
     case ^While:
         strings.write_string(sb, "While := (")
         expr_to_string_summary_with_builder(stmt_.cond, sb)
+        strings.write_string(sb, "){...}")
+    case ^For:
+        strings.write_string(sb, "For := (")
+        stmt_to_string_summary_with_builder(stmt_.start, sb)
+        strings.write_string(sb, ", ")
+        expr_to_string_summary_with_builder(stmt_.end, sb)
+        strings.write_string(sb, ", ")
+        if stmt_.step != nil {
+            expr_to_string_summary_with_builder(stmt_.step.?, sb)
+        } else {
+            strings.write_string(sb, "(NONE)")
+        }
         strings.write_string(sb, "){...}")
     }
 }

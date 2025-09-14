@@ -124,7 +124,12 @@ While :: struct {
     body: [dynamic]Stmt,
 }
 
-For :: struct {} // ?
+For :: struct {
+    start: ^Assignment,
+    end: Expr,
+    step: Maybe(Expr),
+    body: [dynamic]Stmt,
+} 
 
 Function :: struct {
     identifier: Identifier,
@@ -154,6 +159,7 @@ Stmt :: union #no_nil {
         ^Function,
         ^Return,
         ^While,
+        ^For,
 }
 
 Program :: [dynamic]Stmt

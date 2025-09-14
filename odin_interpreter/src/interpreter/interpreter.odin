@@ -20,6 +20,7 @@ Runtime_Error :: enum {
     UndefinedVariable,
     UndefinedFunction,
     MismatchedNumberArgs,
+    ExpectedOnlyIntegerInFor,
 }
 
 Bool :: bool
@@ -66,6 +67,7 @@ interpreter_error_to_string :: proc(ie: Runtime_Error) -> (s: string) {
     case .UndefinedVariable: s = "Undefined variable"
     case .UndefinedFunction: s = "Undefined function"
     case .MismatchedNumberArgs: s = "Mismatched number of arguments in function call"
+    case .ExpectedOnlyIntegerInFor: s = "'for' supports only integers"
     }
     return
 }
