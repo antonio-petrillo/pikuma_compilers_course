@@ -35,7 +35,6 @@ def stringify(val):
     return str(int(val))
   return str(val)
 
-
 def lexing_error(message, lineno):
   print(f'{Colors.RED}[Line {lineno}]: {message} {Colors.WHITE}')
   import sys

@@ -20,6 +20,13 @@ class Stmt(Node):
   pass
 
 
+class Decl(Stmt):
+  '''
+  Declarations are statements to declare a new name (in our case, functions)
+  '''
+  pass
+
+
 class Integer(Expr):
   '''
   Example: 17
@@ -135,7 +142,7 @@ class Identifier(Expr):
     self.name = name
     self.line = line
   def __repr__(self):
-    return f'Identifier[{self.name}]'
+    return f'Identifier[{self.name!r}]'
 
 
 class Stmts(Node):
@@ -191,27 +198,19 @@ class WhileStmt(Stmt):
     self.line = line
   def __repr__(self):
     return f'WhileStmt({self.test}, {self.body_stmts})'
-  
-class ForStmt(Stmt):
+
+class LocalAssignment(Stmt):
   '''
-  "For" <identifer> ":=" <start> "," <end> ("," <increment>)? "do" <body_stmts> "end"
+  "local" left := right
   '''
-  def __init__(self, ident, start, end, step, body_stmts, line):
-    assert isinstance(ident, Identifier), ident
-    assert isinstance(start, Expr), start
-    assert isinstance(end, Expr), end
-    assert isinstance(step, Expr) or step is None, step
-    assert isinstance(body_stmts, Stmts), body_stmts
-    self.ident = ident
-    self.start = start
-    self.end = end
-    self.step = step
-    self.body_stmts = body_stmts
+  def __init__(self, left, right, line):
+    assert isinstance(left, Expr), left
+    assert isinstance(right, Expr), right
+    self.left = left
+    self.right = right
     self.line = line
-
   def __repr__(self):
-    return f"ForStmt({self.ident}, {self.start}, {self.end}, {self.step}, {self.body_stmts})"
-
+    return f'LocalAssignment({self.left}, {self.right})'
 
 class Assignment(Stmt):
   '''
@@ -225,3 +224,86 @@ class Assignment(Stmt):
     self.line = line
   def __repr__(self):
     return f'Assignment({self.left}, {self.right})'
+
+
+class ForStmt(Stmt):
+  '''
+  "for" <identifier> ":=" <start> "," <end> ("," <step>)? "do" <body_stmts> "end"
+  '''
+  def __init__(self, ident, start, end, step, body_stmts, line):
+    assert isinstance(ident, Identifier), ident
+    assert isinstance(start, Expr), start
+    assert isinstance(end, Expr), end
+    assert isinstance(step, Expr) or step is None, step
+    assert isinstance(body_stmts, Stmts), body_stmts
+    self.ident = ident
+    self.start = start
+    self.end = end
+    self.step = step
+    self.body_stmts = body_stmts
+    self.line = line
+  def __repr__(self):
+    return f'ForStmt({self.ident}, {self.start}, {self.end}, {self.step}, {self.body_stmts})'
+
+
+class FuncDecl(Decl):
+  '''
+  "func" <name> "(" <params>? ")" <body_stmts> "end"
+  '''
+  def __init__(self, name, params, body_stmts, line):
+    assert isinstance(name, str), name
+    assert all(isinstance(param, Param) for param in params), params
+    self.name = name
+    self.params = params
+    self.body_stmts = body_stmts
+    self.line = line
+  def __repr__(self):
+    return f'FuncDecl({self.name!r}, {self.params}, {self.body_stmts})'
+
+
+class Param(Decl):
+  '''
+  A single function parameter
+  '''
+  def __init__(self, name, line):
+    assert isinstance(name, str), name
+    self.name = name
+    self.line = line
+  def __repr__(self):
+    return f'Param[{self.name!r}]'
+
+
+class FuncCall(Expr):
+  '''
+  <func_call>  ::=  <name> "(" <args>? ")"
+  <args> ::= <expr> ( ',' <expr> )*
+  '''
+  def __init__(self, name, args, line):
+    self.name = name
+    self.args = args
+    self.line = line
+  def __repr__(self):
+    return f'FuncCall({self.name!r}, {self.args})'
+
+
+class FuncCallStmt(Stmt):
+  '''
+  A special type of statement used to wrap FuncCall expressions
+  '''
+  def __init__(self, expr):
+    assert isinstance(expr, FuncCall), expr
+    self.expr = expr
+  def __repr__(self):
+    return f'FuncCallStmt({self.expr})'
+
+
+class RetStmt(Stmt):
+  '''
+  "ret" <expr>
+  '''
+  def __init__(self, value, line):
+    assert isinstance(value, Expr), value
+    self.value = value
+    self.line = line
+  def __repr__(self):
+    return f'RetStmt[{self.value}]'

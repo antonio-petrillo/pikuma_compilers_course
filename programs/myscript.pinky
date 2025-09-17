@@ -1,3 +1,14 @@
-for num := 1, 10, 2 do
-    println("num = " + num)
+x := 0
+func foo(x)
+     local x := 999
+     i := 1
+     while i <= 5 do
+           local x := -1
+           println x
+           i := i + 1
+     end
+     println x
 end
+
+foo(6)
+println x
