@@ -1,14 +1,16 @@
-x := 0
-func foo(x)
-     local x := 999
-     i := 1
-     while i <= 5 do
-           local x := -1
-           println x
-           i := i + 1
-     end
-     println x
+println "Hello, World!"
+
+if true then 
+    println "Hello, World!"
+else 
+    println "Goodbye, World!"
 end
 
-foo(6)
+if false then 
+    println "Hello, World!"
+else 
+    println "Goodbye, World!"
+end
+
+x := 1
 println x
